@@ -1,0 +1,29 @@
+services:
+  adguardhome:
+    container_name: adguard
+    image: adguard/adguardhome:latest
+    restart: unless-stopped
+    ports:
+      # DNS
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Initial setup wizard
+      - "${ADGUARD_WEB_PORT}:3000/tcp"
+      # Web UI (after setup)
+      - "${ADGUARD_HTTP_PORT}:80/tcp"
+      # DoH (optional, for later)
+      # - "443:443/tcp"
+      # - "443:443/udp"
+      # DoT (optional, for later)
+      # - "853:853/tcp"
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - /data/configs/adguard/work:/opt/adguardhome/work
+      - /data/configs/adguard/conf:/opt/adguardhome/conf
+    networks:
+      - proxy_net
+
+networks:
+  proxy_net:
+    external: true    
