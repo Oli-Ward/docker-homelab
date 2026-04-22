@@ -4,8 +4,20 @@ data/
 configs/
 *.db
 *.sqlite
+ssl/
+backups/
 
 # Komodo
 komodo/backups/
 komodo/compose.env
 
+# Security
+security/authentik/data/
+security/authentik/certs/
+security/authentik/custom-templates/
+security/authentik/database/
+security/authentik/logs/
+security/authentik/media/
+security/authentik/static/
+security/authentik/templates/
+security/authentik/tmp/
