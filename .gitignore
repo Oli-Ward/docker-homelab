@@ -1,0 +1,12 @@
+# General
+.env
+*.env
+data/
+configs/
+*.db
+*.sqlite
+
+# Komodo
+komodo/backups/
+komodo/compose.env
+
