@@ -1,0 +1,58 @@
+services:
+  # Jellyfin - Media Server
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks:
+      - media_net
+      - proxy_net
+    volumes:
+      - ${DATA_ROOT}/configs/jellyfin:/config
+      - ${DATA_ROOT}/media/tv:/data/tv
+      - ${DATA_ROOT}/media/movies:/data/movies
+      - ${DATA_ROOT}/media/books:/data/books
+      - ${DATA_ROOT}/downloads:/data/downloads
+    restart: unless-stopped
+
+
+# # Home page for services
+#   homepage:
+#     image: ghcr.io/gethomepage/homepage:latest
+#     container_name: homepage
+#     volumes:
+#       - ${DATA_ROOT}/configs/homepage:/app/config
+#       - /var/run/docker.sock:/var/run/docker.sock:ro
+#       - ${DATA_ROOT}:/data:ro
+#     networks:
+#       - media_net
+#     environment:
+#       - PUID=${PUID}
+#       - PGID=${PGID}
+#       - TZ=${TZ}
+#       - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS}
+#       - HOMEPAGE_VAR_TITLE=${HOMEPAGE_VAR_TITLE}
+#     restart: unless-stopped
+
+#  # Jellyseerr - Request Management
+#   jellyseerr:
+#     image: fallenbagel/jellyseerr:latest
+#     container_name: jellyseerr
+#     networks:
+#       - media_net
+#     environment:
+#       - LOG_LEVEL=info
+#       - TZ=${TZ}
+#       - PORT=5055
+#     volumes:
+#       - ${DATA_ROOT}/configs/jellyseerr:/app/config
+#     restart: unless-stopped
+
+networks:
+  media_net:
+    external: true
+  proxy_net:
+    external: true
