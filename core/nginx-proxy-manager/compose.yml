@@ -14,8 +14,12 @@ services:
       - TZ=Pacific/Auckland
     networks:
       - proxy_net
+      - internal_net
 
 networks:
   proxy_net:
     name: proxy_net
+    external: true
+  internal_net:
+    name: internal_net
     external: true

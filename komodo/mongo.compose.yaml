@@ -22,7 +22,9 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${KOMODO_DATABASE_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
-  
+    networks:
+      - komodo_net
+
   core:
     image: ghcr.io/moghtech/komodo-core:${COMPOSE_KOMODO_IMAGE_TAG:-2}
     init: true
@@ -45,6 +47,9 @@ services:
       # - /path/to/core.config.toml:/config/config.toml
       ## Optionally mount custom root CA certificate to trust
       # - /path/to/root_ca.crt:/usr/local/share/ca-certificates/root_ca.crt
+    networks:
+      - internal_net
+      - komodo_net
 
   ## Deploy Periphery container using this block,
   ## or deploy the Periphery binary with systemd using 
@@ -73,6 +78,8 @@ services:
       # - /path/to/periphery.config.toml:/config/config.toml
       ## Optionally mount custom root CA certificate to trust
       # - /path/to/root_ca.crt:/usr/local/share/ca-certificates/root_ca.crt
+    networks:
+      - komodo_net
 
 volumes:
   # Mongo
@@ -80,3 +87,9 @@ volumes:
   mongo-config:
   # Core / Periphery
   keys:
+
+networks:
+  internal_net:
+    external: true
+  komodo_net:
+    external: true
