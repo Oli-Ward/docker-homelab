@@ -1,0 +1,112 @@
+services:
+  # Radarr - Movie Management
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/radarr:/config
+      - ${DATA_ROOT}/media/movies:/movies
+      - ${DATA_ROOT}/downloads:/downloads
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
+  # Sonarr - TV Management
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/sonarr:/config
+      - ${DATA_ROOT}/media/tv:/tv
+      - ${DATA_ROOT}/downloads:/downloads
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
+  # Prowlarr - Indexer Manager
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/prowlarr:/config
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
+  # Bazarr - Subtitle Management
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/bazarr:/config
+      - ${DATA_ROOT}/media/tv:/tv
+      - ${DATA_ROOT}/media/movies:/movies
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
+  # Autoscan - Library Scanner
+  autoscan:
+    image: ghcr.io/niniyas/autoscan:latest
+    container_name: autoscan
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=002
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/autoscan:/config
+      - ${DATA_ROOT}/media/tv:/tv
+      - ${DATA_ROOT}/media/movies:/movies
+    restart: unless-stopped
+    networks:
+      - media_net    
+
+  # Cleanuparr - Cleanup Tool
+  cleanuparr:
+    image: ghcr.io/cleanuparr/cleanuparr:latest
+    container_name: cleanuparr
+    environment:
+      - PORT=11011
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=022
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/configs/cleanuparr:/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11011/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    networks:
+      - media_net
+      - proxy_net
+      
+networks:
+  media_net:
+    external: true
+  proxy_net:
+    external: true
