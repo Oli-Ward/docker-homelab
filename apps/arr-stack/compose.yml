@@ -94,6 +94,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${DATA_ROOT}/configs/cleanuparr:/config
+      - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11011/health"]
