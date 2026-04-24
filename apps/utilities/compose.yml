@@ -1,0 +1,92 @@
+services:
+  # Home page for services
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    volumes:
+      - ${DATA_ROOT}/configs/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DATA_ROOT}:/data:ro
+      - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
+    networks:
+      - utilities_net
+      - proxy_net
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS}
+      - HOMEPAGE_VAR_TITLE=${HOMEPAGE_VAR_TITLE}
+    restart: unless-stopped
+
+  # Get system data with glances
+  glances:
+    image: nicolargo/glances:latest
+    init: true
+    container_name: glances
+    restart: unless-stopped
+    pid: host
+    privileged: true
+    networks:
+      - utilities_net
+      - proxy_net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DATA_ROOT}/configs/glances:/glances/conf
+    environment:
+      - TZ=${TZ}
+      - GLANCES_OPT=-w
+
+  icloudpd:
+    image: icloudpd/icloudpd:latest
+    container_name: icloudpd
+    restart: unless-stopped
+    networks:
+      - utilities_net
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_ROOT}/media/Photos:/data
+      - ${DATA_ROOT}/configs/icloudpd:/config
+    stdin_open: true
+    tty: true
+    command:
+      - icloudpd
+      - --directory
+      - /data
+      - --username
+      - ${ICLOUD_USERNAME}
+      - --cookie-directory
+      - /config
+      - --folder-structure
+      - "{:%Y/%m}"
+      - --set-exif-datetime
+      - --align-raw
+      - original
+      - --live-photo-size
+      - original
+
+  speedtest-tracker:
+    image: lscr.io/linuxserver/speedtest-tracker:latest
+    container_name: speedtest-tracker
+    restart: unless-stopped
+    networks:
+      - proxy_net
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - APP_TIMEZONE=${TZ}
+      - DISPLAY_TIMEZONE=${TZ}
+      - APP_KEY=${SPEEDTEST_KEY}
+      - APP_URL=${SPEEDTEST_APP_URL}
+      - DB_CONNECTION=sqlite
+      - SPEEDTEST_SCHEDULE=17 * * * *
+    volumes:
+      - ${DATA_ROOT}/configs/speedtest-tracker:/config
+
+networks:
+  utilities_net:
+    external: true
+  proxy_net:
+    external: true
