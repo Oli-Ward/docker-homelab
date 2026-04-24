@@ -22,11 +22,15 @@ services:
     - database:/var/lib/postgresql/data
   server:
     command: server
+    container_name: authentik-server
     depends_on:
       postgresql:
         condition: service_healthy
     env_file:
     - .env
+    ports:
+    - "9000:9000"
+    - "9443:9443"
     environment:
       AUTHENTIK_POSTGRESQL__HOST: postgresql
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
