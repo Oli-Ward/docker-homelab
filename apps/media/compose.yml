@@ -7,6 +7,8 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
+    ports: 
+      - 8096:8096
     networks:
       - media_net
       - proxy_net
