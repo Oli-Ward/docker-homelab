@@ -7,7 +7,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    ports: 
+    ports:
       - 8096:8096
     networks:
       - media_net
@@ -16,13 +16,14 @@ services:
       - ${DATA_ROOT}/configs/jellyfin:/config
       - ${DATA_ROOT}/media/tv:/data/tv
       - ${DATA_ROOT}/media/movies:/data/movies
-      - ${DATA_ROOT}/media/books:/data/books
-      - ${DATA_ROOT}/downloads:/data/downloads
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
-    entrypoint: ["/bin/sh", "-c", "update-ca-certificates && exec /init"]
+    entrypoint: [ "/bin/sh", "-c", "update-ca-certificates && exec /init" ]
     restart: unless-stopped
+    extra_hosts:
+      - "auth.home.lab:192.168.1.103"
+      - "authentik.home.lab:192.168.1.103"
 
-# Jellyseerr - Request Management
+  # Jellyseerr - Request Management
   jellyseerr:
     image: fallenbagel/jellyseerr:preview-OIDC
     container_name: jellyseerr
@@ -35,7 +36,7 @@ services:
       - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt
     volumes:
       - ${DATA_ROOT}/configs/jellyseerr:/app/config
-      - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro     
+      - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
 
 networks:

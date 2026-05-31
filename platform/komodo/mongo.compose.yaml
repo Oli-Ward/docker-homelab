@@ -49,6 +49,7 @@ services:
       # - /path/to/root_ca.crt:/usr/local/share/ca-certificates/root_ca.crt
     networks:
       - internal_net
+      - proxy_net
       - komodo_net
 
   ## Deploy Periphery container using this block,
@@ -90,6 +91,8 @@ volumes:
 
 networks:
   internal_net:
+    external: true
+  proxy_net:
     external: true
   komodo_net:
     external: true
