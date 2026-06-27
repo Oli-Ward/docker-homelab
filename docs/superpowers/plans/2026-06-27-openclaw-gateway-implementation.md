@@ -49,15 +49,18 @@
 Create `apps/openclaw-gateway/openclaw-gateway/tests/test_health.py`:
 
 ```python
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 
 from openclaw_gateway.main import create_app
 
 
-def test_health_is_public():
-    client = TestClient(create_app())
+@pytest.mark.asyncio
+async def test_health_is_public():
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/health")
 
-    response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -121,7 +124,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="OpenClaw Gateway", version="0.1.0")
 
     @app.get("/health")
-    def health() -> dict[str, str]:
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app
@@ -202,14 +205,15 @@ def test_settings_reject_missing_gateway_token():
 Create `apps/openclaw-gateway/openclaw-gateway/tests/test_auth.py`:
 
 ```python
+import httpx
+import pytest
 from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.settings import GatewaySettings
 
 
-def make_client() -> TestClient:
+def make_app() -> FastAPI:
     settings = GatewaySettings(
         gateway_auth_token="gateway-secret",
         jellyfin_url="http://jellyfin:8096",
@@ -221,34 +225,43 @@ def make_client() -> TestClient:
     app = FastAPI()
 
     @app.get("/protected", dependencies=[Depends(require_gateway_token(settings))])
-    def protected() -> dict[str, str]:
+    async def protected() -> dict[str, str]:
         return {"ok": "true"}
 
-    return TestClient(app)
+    return app
 
 
-def test_missing_bearer_token_is_unauthorized():
-    response = make_client().get("/protected")
+@pytest.mark.asyncio
+async def test_missing_bearer_token_is_unauthorized():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/protected")
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Missing bearer token"
 
 
-def test_invalid_bearer_token_is_unauthorized():
-    response = make_client().get(
-        "/protected",
-        headers={"Authorization": "Bearer wrong-token"},
-    )
+@pytest.mark.asyncio
+async def test_invalid_bearer_token_is_unauthorized():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/protected",
+            headers={"Authorization": "Bearer wrong-token"},
+        )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid bearer token"
 
 
-def test_valid_bearer_token_is_allowed():
-    response = make_client().get(
-        "/protected",
-        headers={"Authorization": "Bearer gateway-secret"},
-    )
+@pytest.mark.asyncio
+async def test_valid_bearer_token_is_allowed():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/protected",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
 
     assert response.status_code == 200
     assert response.json() == {"ok": "true"}
@@ -316,13 +329,15 @@ def require_gateway_token(settings: GatewaySettings) -> Callable[[str | None], N
 Modify `apps/openclaw-gateway/openclaw-gateway/tests/test_health.py`:
 
 ```python
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 
 from openclaw_gateway.main import create_app
 from openclaw_gateway.settings import GatewaySettings
 
 
-def test_health_is_public():
+@pytest.mark.asyncio
+async def test_health_is_public():
     settings = GatewaySettings(
         gateway_auth_token="gateway-secret",
         jellyfin_url="http://jellyfin:8096",
@@ -331,9 +346,10 @@ def test_health_is_public():
         jellyseerr_api_key="jellyseerr-secret",
         upstream_timeout_seconds=5.0,
     )
-    client = TestClient(create_app(settings=settings))
+    transport = httpx.ASGITransport(app=create_app(settings=settings))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/health")
 
-    response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -355,7 +371,7 @@ def create_app(settings: GatewaySettings | None = None) -> FastAPI:
     app.state.settings = app_settings
 
     @app.get("/health")
-    def health() -> dict[str, str]:
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app
@@ -721,13 +737,14 @@ git commit -m "OPN-153: add normalized Jellyseerr client"
 Create `apps/openclaw-gateway/openclaw-gateway/tests/test_media_routes.py`:
 
 ```python
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 
 from openclaw_gateway.main import create_app
 from openclaw_gateway.settings import GatewaySettings
 
 
-def make_client() -> TestClient:
+def make_app():
     settings = GatewaySettings(
         gateway_auth_token="gateway-secret",
         jellyfin_url="http://jellyfin:8096",
@@ -736,16 +753,20 @@ def make_client() -> TestClient:
         jellyseerr_api_key="jellyseerr-secret",
         upstream_timeout_seconds=5.0,
     )
-    return TestClient(create_app(settings=settings))
+    return create_app(settings=settings)
 
 
-def test_media_routes_require_auth():
-    response = make_client().get("/v1/media/jellyfin/search?q=alien")
+@pytest.mark.asyncio
+async def test_media_routes_require_auth():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/v1/media/jellyfin/search?q=alien")
 
     assert response.status_code == 401
 
 
-def test_jellyfin_search_route_returns_normalized_items(monkeypatch):
+@pytest.mark.asyncio
+async def test_jellyfin_search_route_returns_normalized_items(monkeypatch):
     async def fake_search(self, query):
         from openclaw_gateway.schemas.media import MediaItem, MediaSearchResponse
 
@@ -765,16 +786,19 @@ def test_jellyfin_search_route_returns_normalized_items(monkeypatch):
 
     monkeypatch.setattr("openclaw_gateway.clients.jellyfin.JellyfinClient.search", fake_search)
 
-    response = make_client().get(
-        "/v1/media/jellyfin/search?q=alien",
-        headers={"Authorization": "Bearer gateway-secret"},
-    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/jellyfin/search?q=alien",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
 
     assert response.status_code == 200
     assert response.json()["items"][0]["title"] == "Alien"
 
 
-def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
+@pytest.mark.asyncio
+async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
     async def fake_search(self, query):
         from openclaw_gateway.schemas.media import MediaItem, MediaSearchResponse
 
@@ -795,10 +819,12 @@ def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
 
     monkeypatch.setattr("openclaw_gateway.clients.jellyseerr.JellyseerrClient.search", fake_search)
 
-    response = make_client().get(
-        "/v1/media/jellyseerr/search?q=alien",
-        headers={"Authorization": "Bearer gateway-secret"},
-    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/jellyseerr/search?q=alien",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
 
     assert response.status_code == 200
     assert response.json()["items"][0]["request_status"] == "approved"
@@ -899,7 +925,7 @@ def create_app(settings: GatewaySettings | None = None) -> FastAPI:
     app.include_router(build_media_router(app_settings))
 
     @app.get("/health")
-    def health() -> dict[str, str]:
+    async def health() -> dict[str, str]:
         return {"status": "ok"}
 
     return app
