@@ -16,12 +16,14 @@ Paperless-ngx runs here as the current document-management service.
 ${DATA_ROOT}/configs/paperless/data        Paperless app data
 ${DATA_ROOT}/configs/paperless/postgres    PostgreSQL state
 ${DATA_ROOT}/configs/paperless/redis       Redis state
-/mnt/storage/01_Documents/paperless/media  Paperless-managed live document media
-/mnt/storage/01_Documents/paperless/consume Consume drop zone
-/mnt/storage/05_Backups/paperless/export   Manual export output
+${DATA_ROOT}/configs/paperless/media       Paperless-managed live document media
+${DATA_ROOT}/configs/paperless/consume     Consume drop zone
+${DATA_ROOT}/configs/paperless/export      Manual export output
 ```
 
 Do not manually edit files in the live media directory. Use Paperless, exports, or the future gateway path.
+
+The first deployment uses `/data/configs/paperless` for all Paperless state because `/mnt/storage` was not mounted in the media Ubuntu VM during validation. Do not move document media to another mount until that storage is confirmed reliable and a backup/export plan is in place.
 
 ## Deployment
 
@@ -36,9 +38,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 Create the host directories before first deploy if Komodo does not create them:
 
 ```bash
-mkdir -p /data/configs/paperless/{data,postgres,redis}
-mkdir -p /mnt/storage/01_Documents/paperless/{media,consume}
-mkdir -p /mnt/storage/05_Backups/paperless/export
+mkdir -p /data/configs/paperless/{data,postgres,redis,media,consume,export}
 ```
 
 ## Access
@@ -62,7 +62,7 @@ If a Paperless API token is created for later automation, store it outside Git a
 Manual export target:
 
 ```text
-/mnt/storage/05_Backups/paperless/export
+${DATA_ROOT}/configs/paperless/export
 ```
 
 Run an export from the deployed stack when needed:

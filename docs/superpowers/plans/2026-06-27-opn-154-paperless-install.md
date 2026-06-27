@@ -10,6 +10,12 @@
 
 ---
 
+## Implementation Deviations
+
+- PostgreSQL 18 uses `/var/lib/postgresql` as the container bind target in `apps/docs/compose.yml`; the original `/var/lib/postgresql/data` target caused fresh init failure.
+- `/mnt/storage` was not mounted inside the media Ubuntu VM during validation, so Paperless media, consume, and export paths now live under `${DATA_ROOT}/configs/paperless`.
+- Long-term archive/off-host backup storage remains deferred to OPN-155 and the storage-mount follow-up.
+
 ## File Map
 
 - Create `apps/docs/compose.yml`: Paperless stack definition with explicit container names, internal network, `proxy_net`, bind mounts, pinned image tags, and no host port publication.

@@ -4,7 +4,7 @@ services:
     container_name: paperless-broker
     restart: unless-stopped
     volumes:
-      - /data/configs/paperless/redis:/data
+      - ${DATA_ROOT}/configs/paperless/redis:/data
     networks:
       - docs_net
 
@@ -17,7 +17,7 @@ services:
       POSTGRES_USER: ${PAPERLESS_DBUSER}
       POSTGRES_PASSWORD: ${PAPERLESS_DBPASS}
     volumes:
-      - /data/configs/paperless/postgres:/var/lib/postgresql
+      - ${DATA_ROOT}/configs/paperless/postgres:/var/lib/postgresql
     networks:
       - docs_net
 
@@ -65,10 +65,10 @@ services:
       PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
       PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
     volumes:
-      - /data/configs/paperless/data:/usr/src/paperless/data
-      - /data/configs/paperless/media:/usr/src/paperless/media
-      - /data/configs/paperless/consume:/usr/src/paperless/consume
-      - /data/configs/paperless/export:/usr/src/paperless/export
+      - ${DATA_ROOT}/configs/paperless/data:/usr/src/paperless/data
+      - ${DATA_ROOT}/configs/paperless/media:/usr/src/paperless/media
+      - ${DATA_ROOT}/configs/paperless/consume:/usr/src/paperless/consume
+      - ${DATA_ROOT}/configs/paperless/export:/usr/src/paperless/export
     networks:
       - docs_net
       - proxy_net

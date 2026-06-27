@@ -54,20 +54,20 @@ Keep application state under the existing repo convention:
 ${DATA_ROOT}/configs/paperless/
 ```
 
-Use long-term document storage for Paperless payloads:
+For the first deployment, use `${DATA_ROOT}/configs/paperless` for Paperless payloads:
 
 ```text
-/mnt/storage/01_Documents/paperless/media
-/mnt/storage/01_Documents/paperless/consume
+${DATA_ROOT}/configs/paperless/media
+${DATA_ROOT}/configs/paperless/consume
 ```
 
-Use the backup mount for manual exports:
+Use the same Paperless config tree for manual exports until a reliable backup/archive mount is available:
 
 ```text
-/mnt/storage/05_Backups/paperless/export
+${DATA_ROOT}/configs/paperless/export
 ```
 
-Paperless owns the live media directory. Humans and automation should not edit files inside the live media path directly. The consume path is a narrow future-friendly drop zone, not a broad host mount.
+Paperless owns the live media directory. Humans and automation should not edit files inside the live media path directly. The consume path is a narrow future-friendly drop zone, not a broad host mount. `/mnt/storage` was not mounted in the media Ubuntu VM during validation, so do not move Paperless media there until that storage is confirmed reliable and backup/export automation is ready.
 
 ## Network And Auth
 
@@ -132,7 +132,7 @@ Before OPN-154 is considered complete:
 OPN-154 defines the manual export path but does not automate backups. Document a manual export command using Paperless' exporter to write into:
 
 ```text
-/mnt/storage/05_Backups/paperless/export
+${DATA_ROOT}/configs/paperless/export
 ```
 
 Scheduled export, PostgreSQL backup, retention, and restore verification are tracked by OPN-155.
@@ -145,6 +145,6 @@ Normal rollback should preserve data by default:
 - Remove or disable the NPM proxy host.
 - Remove or disable the Authentik application/provider wiring.
 - Remove the Homepage `Documents` entry if desired.
-- Leave `/data/configs/paperless` and `/mnt/storage/.../paperless` intact.
+- Leave `/data/configs/paperless` intact.
 
 Destructive cleanup of Paperless config, database, media, consume, and export directories must be a separate explicit step.
