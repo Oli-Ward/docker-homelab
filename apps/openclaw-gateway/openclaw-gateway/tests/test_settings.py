@@ -30,3 +30,11 @@ def test_settings_reject_missing_gateway_token():
 
     with pytest.raises(ValidationError):
         GatewaySettings(**kwargs)
+
+
+def test_settings_reject_non_ascii_gateway_token():
+    kwargs = valid_settings_kwargs()
+    kwargs["gateway_auth_token"] = "gateway-secrēt"
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)

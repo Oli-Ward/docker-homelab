@@ -1,13 +1,5 @@
-import os
-
 import httpx
 import pytest
-
-os.environ.setdefault("GATEWAY_AUTH_TOKEN", "gateway-secret")
-os.environ.setdefault("JELLYFIN_URL", "http://jellyfin:8096")
-os.environ.setdefault("JELLYFIN_API_KEY", "jellyfin-secret")
-os.environ.setdefault("JELLYSEERR_URL", "http://jellyseerr:5055")
-os.environ.setdefault("JELLYSEERR_API_KEY", "jellyseerr-secret")
 
 from openclaw_gateway.main import create_app
 from openclaw_gateway.settings import GatewaySettings

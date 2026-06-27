@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class GatewaySettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    gateway_auth_token: Annotated[str, Field(min_length=1)]
+    gateway_auth_token: Annotated[str, Field(min_length=1, pattern=r"^[\x21-\x7E]+$")]
     jellyfin_url: AnyHttpUrl
     jellyfin_api_key: Annotated[str, Field(min_length=1)]
     jellyseerr_url: AnyHttpUrl
