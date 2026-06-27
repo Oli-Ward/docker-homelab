@@ -13,7 +13,7 @@ services:
       - media_net
       - proxy_net
     volumes:
-      - ${DATA_ROOT}/configs/jellyfin:/config
+      - ${APPDATA_ROOT}/jellyfin:/config
       - ${DATA_ROOT}/media/tv:/data/tv
       - ${DATA_ROOT}/media/movies:/data/movies
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
@@ -35,7 +35,7 @@ services:
       - TZ=${TZ}
       - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt
     volumes:
-      - ${DATA_ROOT}/configs/jellyseerr:/app/config
+      - ${APPDATA_ROOT}/jellyseerr:/app/config
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
 

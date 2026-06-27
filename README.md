@@ -110,6 +110,32 @@ Examples:
 
 ---
 
+## 💾 Storage Roots
+
+`DATA_ROOT` is for user data:
+
+* media libraries under `${DATA_ROOT}/media/...`
+* downloads under `${DATA_ROOT}/downloads`
+* photos under `${DATA_ROOT}/media/Photos`
+* broad read-only browsing mounts, such as Homepage's `/data` view
+
+`APPDATA_ROOT` is for mutable container app state:
+
+* service config directories
+* databases and generated state
+* cookies, queues, caches, and certificate/config state
+
+Recommended values:
+
+```env
+DATA_ROOT=/data
+APPDATA_ROOT=/srv/appdata
+```
+
+Homepage is the deliberate exception. Its selected safe dashboard config is repo-managed under `apps/utilities/homepage` and mounted into the container with `./homepage:/app/config`; real widget secrets stay in the untracked stack `.env`.
+
+---
+
 ## ⚠️ Notes
 
 * Do **not** proxy apps like Sonarr directly — always via Authentik

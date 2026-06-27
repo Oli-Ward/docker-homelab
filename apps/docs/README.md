@@ -13,17 +13,17 @@ Paperless-ngx runs here as the current document-management service.
 ## Paths
 
 ```text
-${DATA_ROOT}/configs/paperless/data        Paperless app data
-${DATA_ROOT}/configs/paperless/postgres    PostgreSQL state
-${DATA_ROOT}/configs/paperless/redis       Redis state
-${DATA_ROOT}/configs/paperless/media       Paperless-managed live document media
-${DATA_ROOT}/configs/paperless/consume     Consume drop zone
-${DATA_ROOT}/configs/paperless/export      Manual export output
+${APPDATA_ROOT}/paperless/data        Paperless app data
+${APPDATA_ROOT}/paperless/postgres    PostgreSQL state
+${APPDATA_ROOT}/paperless/redis       Redis state
+${APPDATA_ROOT}/paperless/media       Paperless-managed live document media
+${APPDATA_ROOT}/paperless/consume     Consume drop zone
+${APPDATA_ROOT}/paperless/export      Manual export output
 ```
 
-Do not manually edit files in the live media directory. Use Paperless, exports, or the future gateway path.
+Do not manually edit files in the live Paperless media directory. Use Paperless, exports, or the future gateway path.
 
-The first deployment uses `/data/configs/paperless` for all Paperless state because `/mnt/storage` was not mounted in the media Ubuntu VM during validation. Do not move document media to another mount until that storage is confirmed reliable and a backup/export plan is in place.
+Paperless state now belongs under `${APPDATA_ROOT}/paperless`. Before redeploying this stack with the new path, copy the existing `/data/configs/paperless` tree to the configured app-state root and confirm backups/checkpoints exist.
 
 ## Deployment
 
@@ -38,7 +38,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 Create the host directories before first deploy if Komodo does not create them:
 
 ```bash
-mkdir -p /data/configs/paperless/{data,postgres,redis,media,consume,export}
+mkdir -p /srv/appdata/paperless/{data,postgres,redis,media,consume,export}
 ```
 
 ## Access
@@ -62,7 +62,7 @@ If a Paperless API token is created for later automation, store it outside Git a
 Manual export target:
 
 ```text
-${DATA_ROOT}/configs/paperless/export
+${APPDATA_ROOT}/paperless/export
 ```
 
 Run an export from the deployed stack when needed:
@@ -93,6 +93,6 @@ Normal rollback preserves data:
 2. Remove or disable the NPM proxy host.
 3. Remove or disable Authentik wiring for Paperless.
 4. Remove the Homepage `Documents` entry if desired.
-5. Leave Paperless config, database, media, consume, and export directories intact.
+5. Leave Paperless app-state, database, media, consume, and export directories intact.
 
 Destructive cleanup of Paperless directories must be a separate explicit action.

@@ -8,8 +8,8 @@ services:
       - '443:443'    # HTTPS
       - '81:81'      # Admin UI
     volumes:
-      - /data/configs/nginx-proxy-manager/data:/data
-      - /data/configs/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - ${APPDATA_ROOT}/nginx-proxy-manager/data:/data
+      - ${APPDATA_ROOT}/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
     environment:
       - TZ=Pacific/Auckland
     networks:

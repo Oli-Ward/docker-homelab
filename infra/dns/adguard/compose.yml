@@ -19,8 +19,8 @@ services:
     environment:
       TZ: ${TZ}
     volumes:
-      - /data/configs/adguard/work:/opt/adguardhome/work
-      - /data/configs/adguard/conf:/opt/adguardhome/conf
+      - ${APPDATA_ROOT}/adguard/work:/opt/adguardhome/work
+      - ${APPDATA_ROOT}/adguard/conf:/opt/adguardhome/conf
     networks:
       - proxy_net
 

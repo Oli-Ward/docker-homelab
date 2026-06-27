@@ -62,12 +62,12 @@ Docker networks are all pre-created externally (`external: true`) except `auth_n
 
 **SSL:** The homelab root CA cert at `ssl/home-lab-root.crt` is bind-mounted read-only into services that need to trust internal TLS (Jellyfin, Jellyseerr, Homepage). Services use `NODE_EXTRA_CA_CERTS` or `update-ca-certificates` to load it.
 
-**Data root:** Persistent app data lives under `DATA_ROOT` (default `/data`). Config dirs follow the pattern `${DATA_ROOT}/configs/<service-name>`. Media dirs are `${DATA_ROOT}/media/{tv,movies,books}` and downloads go to `${DATA_ROOT}/downloads`.
+**Data roots:** `DATA_ROOT` (default `/data`) is for user data: media libraries, downloads, photos, and broad read-only browsing mounts. `APPDATA_ROOT` (recommended `/srv/appdata`) is for mutable container app state such as service configs, databases, generated state, cookies, queues, and certificate/config state. Homepage is the deliberate exception: selected safe config is repo-managed under `apps/utilities/homepage` and mounted with `./homepage:/app/config`.
 
 **Komodo:** Manages container deployments on this host. Periphery must have access to `/var/run/docker.sock` and the `PERIPHERY_ROOT_DIRECTORY` (default `/etc/komodo`). Compose files managed by Komodo must live under that root.
 
 ## Environment files
 
 - `.generic.env` — documents the standard base vars (PUID, PGID, TZ) for reference, but is not automatically sourced by stacks
-- Each stack has its own `.env` (gitignored) alongside an `example.env` or `compose.example.env` to document required variables
+- Each stack has its own `.env` (gitignored) alongside an `example.env`, `.env.example`, or `compose.example.env` to document required variables
 - `platform/komodo/compose.env` is gitignored; `compose.example.env` documents all available Komodo variables

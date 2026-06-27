@@ -23,8 +23,6 @@ services:
       - HOMEPAGE_VAR_NZBGET_PASSWORD=${HOMEPAGE_VAR_NZBGET_PASSWORD}
       - HOMEPAGE_VAR_JELLYSEERR_API_KEY=${HOMEPAGE_VAR_JELLYSEERR_API_KEY}
       - HOMEPAGE_VAR_PAPERLESS_PASSWORD=${HOMEPAGE_VAR_PAPERLESS_PASSWORD}
-      - 
-      
     restart: unless-stopped
 
   # Get system data with glances
@@ -40,7 +38,7 @@ services:
       - proxy_net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${DATA_ROOT}/configs/glances:/glances/conf
+      - ${APPDATA_ROOT}/glances:/glances/conf
     environment:
       - TZ=${TZ}
       - GLANCES_OPT=-w
@@ -55,7 +53,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${DATA_ROOT}/media/Photos:/data
-      - ${DATA_ROOT}/configs/icloudpd:/config
+      - ${APPDATA_ROOT}/icloudpd:/config
     stdin_open: true
     tty: true
     command:
@@ -91,7 +89,7 @@ services:
       - DB_CONNECTION=sqlite
       - SPEEDTEST_SCHEDULE=17 * * * *
     volumes:
-      - ${DATA_ROOT}/configs/speedtest-tracker:/config
+      - ${APPDATA_ROOT}/speedtest-tracker:/config
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
@@ -105,7 +103,7 @@ services:
       - TZ=${TZ}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
     volumes:
-      - ${DATA_ROOT}/configs/n8n:/home/node/.n8n
+      - ${APPDATA_ROOT}/n8n:/home/node/.n8n
     networks:
       - utilities_net
       - proxy_net

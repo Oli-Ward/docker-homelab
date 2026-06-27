@@ -8,7 +8,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}Wh
     volumes:
-      - ${DATA_ROOT}/configs/radarr:/config
+      - ${APPDATA_ROOT}/radarr:/config
       - ${DATA_ROOT}/media/movies:/movies
       - ${DATA_ROOT}/downloads:/downloads
     restart: unless-stopped
@@ -25,7 +25,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/sonarr:/config
+      - ${APPDATA_ROOT}/sonarr:/config
       - ${DATA_ROOT}/media/tv:/tv
       - ${DATA_ROOT}/downloads:/downloads
     restart: unless-stopped
@@ -42,7 +42,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/prowlarr:/config
+      - ${APPDATA_ROOT}/prowlarr:/config
     restart: unless-stopped
     networks:
       - media_net
@@ -57,7 +57,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/bazarr:/config
+      - ${APPDATA_ROOT}/bazarr:/config
       - ${DATA_ROOT}/media/tv:/tv
       - ${DATA_ROOT}/media/movies:/movies
     restart: unless-stopped
@@ -75,7 +75,7 @@ services:
       - UMASK=002
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/autoscan:/config
+      - ${APPDATA_ROOT}/autoscan:/config
       - ${DATA_ROOT}/media/tv:/tv
       - ${DATA_ROOT}/media/movies:/movies
     restart: unless-stopped
@@ -93,7 +93,7 @@ services:
       - UMASK=022
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/cleanuparr:/config
+      - ${APPDATA_ROOT}/cleanuparr:/config
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
     healthcheck:

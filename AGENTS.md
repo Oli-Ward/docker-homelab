@@ -45,10 +45,11 @@ The README explains the service catalog and architecture. This file explains how
 
 - External access flows through DNS, Nginx Proxy Manager, then Authentik where required.
 - Internal service-to-service traffic should use Docker service names.
-- Persistent app data lives under `${DATA_ROOT}`.
-- Config paths follow `${DATA_ROOT}/configs/<service>`.
+- User data lives under `${DATA_ROOT}`.
 - Media paths follow `${DATA_ROOT}/media/...`.
 - Downloads live under `${DATA_ROOT}/downloads`.
+- Mutable container app state lives under `${APPDATA_ROOT}/<service>`.
+- Homepage is the deliberate exception: selected safe Homepage config is repo-managed under `apps/utilities/homepage`.
 - Do not invent new Docker networks unless there is a clear reason.
 - Treat existing external networks as pre-created.
 
@@ -64,7 +65,7 @@ The README explains the service catalog and architecture. This file explains how
   - Homepage dashboard entry where user-facing
   - Glances or monitoring visibility where relevant
   - correct Docker networks
-  - persistent config under `${DATA_ROOT}/configs/<service>`
+  - mutable app state under `${APPDATA_ROOT}/<service>`
   - documented variables in an `example.env` or matching example env file
 - Do not add a standalone compose stack when the service clearly belongs in an existing stack.
 - Do not expose a service directly just because it has a port; route through the established proxy/auth pattern unless explicitly told otherwise.
@@ -72,7 +73,7 @@ The README explains the service catalog and architecture. This file explains how
 ## Storage And Volumes
 
 - Treat storage, bind mounts, and volume changes as high-risk.
-- Persistent config should normally use `${DATA_ROOT}/configs/<service>`.
+- Mutable app state should normally use `${APPDATA_ROOT}/<service>`.
 - Media should normally use `${DATA_ROOT}/media/...`.
 - Downloads should normally use `${DATA_ROOT}/downloads`.
 - Agents may add new mounts following existing conventions, but must ask before changing existing paths.
@@ -138,7 +139,7 @@ Some required homelab configuration may live outside this repo, especially in Ko
 - This applies especially to:
   - Authentik and PostgreSQL
   - Komodo and MongoDB
-  - app config directories under `${DATA_ROOT}/configs`
+  - app state directories under `${APPDATA_ROOT}`
   - media and download path mappings
   - Nginx Proxy Manager config
   - AdGuard DNS config

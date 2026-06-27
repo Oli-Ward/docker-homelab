@@ -8,7 +8,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/qbittorrent:/config
+      - ${APPDATA_ROOT}/qbittorrent:/config
       - ${DATA_ROOT}/downloads:/downloads
     network_mode: "service:gluetun"
     restart: unless-stopped
@@ -24,7 +24,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/nzbget:/config
+      - ${APPDATA_ROOT}/nzbget:/config
       - ${DATA_ROOT}/downloads:/downloads
     restart: unless-stopped
     network_mode: "service:gluetun"
@@ -39,7 +39,7 @@ services:
       - LOG_LEVEL=info
       - TZ=${TZ}
     volumes:
-      - ${DATA_ROOT}/configs/flaresolverr:/config
+      - ${APPDATA_ROOT}/flaresolverr:/config
     restart: unless-stopped
     networks:
       - vpn_net
@@ -75,7 +75,7 @@ services:
       - HTTP_CONTROL_SERVER_LOG=${HTTP_CONTROL_SERVER_LOG}
       - HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE=${HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE}
     volumes:
-      - ${DATA_ROOT}/configs/gluetun:/gluetun
+      - ${APPDATA_ROOT}/gluetun:/gluetun
     restart: unless-stopped
 
 networks:
