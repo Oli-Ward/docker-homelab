@@ -164,3 +164,20 @@ async def test_upstream_http_status_error_maps_to_502(monkeypatch):
 
     assert response.status_code == 502
     assert response.json()["detail"] == "jellyfin returned 500"
+
+
+@pytest.mark.asyncio
+async def test_upstream_http_error_maps_to_502(monkeypatch):
+    async def search(self, query: str) -> MediaSearchResponse:
+        raise httpx.HTTPError("network failed")
+
+    monkeypatch.setattr("openclaw_gateway.routers.media.JellyfinClient.search", search)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/jellyfin/search?q=alien",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "jellyfin request failed"
