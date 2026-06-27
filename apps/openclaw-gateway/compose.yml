@@ -4,13 +4,13 @@ services:
     container_name: openclaw-gateway
     restart: unless-stopped
     ports:
-      - "${GATEWAY_BIND_HOST}:${GATEWAY_PORT:-8088}:8080"
+      - "${GATEWAY_BIND_HOST:?Set GATEWAY_BIND_HOST to the media host LAN IP}:${GATEWAY_PORT:-8088}:8080"
     environment:
-      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
-      - JELLYFIN_URL=${JELLYFIN_URL}
-      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
-      - JELLYSEERR_URL=${JELLYSEERR_URL}
-      - JELLYSEERR_API_KEY=${JELLYSEERR_API_KEY}
+      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN:?Set GATEWAY_AUTH_TOKEN in Komodo or apps/openclaw-gateway/.env}
+      - JELLYFIN_URL=${JELLYFIN_URL:-http://jellyfin:8096}
+      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY:?Set JELLYFIN_API_KEY in Komodo or apps/openclaw-gateway/.env}
+      - JELLYSEERR_URL=${JELLYSEERR_URL:-http://jellyseerr:5055}
+      - JELLYSEERR_API_KEY=${JELLYSEERR_API_KEY:?Set JELLYSEERR_API_KEY in Komodo or apps/openclaw-gateway/.env}
       - UPSTREAM_TIMEOUT_SECONDS=${UPSTREAM_TIMEOUT_SECONDS:-5}
     networks:
       - media_net

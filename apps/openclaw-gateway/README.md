@@ -53,6 +53,8 @@ JELLYSEERR_API_KEY=change-me
 UPSTREAM_TIMEOUT_SECONDS=5
 ```
 
+`GATEWAY_AUTH_TOKEN` is the server-side variable consumed by this container. OpenClaw can store the same secret as `MEDIA_GATEWAY_TOKEN` on the client side, but Komodo must still provide `GATEWAY_AUTH_TOKEN` to the gateway stack.
+
 Do not commit `.env` or real API keys.
 
 ## Network
