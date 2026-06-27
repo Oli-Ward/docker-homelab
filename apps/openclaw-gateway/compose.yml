@@ -1,0 +1,20 @@
+services:
+  openclaw-gateway:
+    build: ./openclaw-gateway
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_BIND_HOST}:${GATEWAY_PORT:-8088}:8080"
+    environment:
+      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN}
+      - JELLYFIN_URL=${JELLYFIN_URL}
+      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
+      - JELLYSEERR_URL=${JELLYSEERR_URL}
+      - JELLYSEERR_API_KEY=${JELLYSEERR_API_KEY}
+      - UPSTREAM_TIMEOUT_SECONDS=${UPSTREAM_TIMEOUT_SECONDS:-5}
+    networks:
+      - media_net
+
+networks:
+  media_net:
+    external: true
