@@ -1,0 +1,79 @@
+services:
+  paperless-broker:
+    image: docker.io/library/redis:8.2.7
+    container_name: paperless-broker
+    restart: unless-stopped
+    volumes:
+      - ${DATA_ROOT}/configs/paperless/redis:/data
+    networks:
+      - docs_net
+
+  paperless-db:
+    image: docker.io/library/postgres:18.4
+    container_name: paperless-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PAPERLESS_DBNAME}
+      POSTGRES_USER: ${PAPERLESS_DBUSER}
+      POSTGRES_PASSWORD: ${PAPERLESS_DBPASS}
+    volumes:
+      - ${DATA_ROOT}/configs/paperless/postgres:/var/lib/postgresql/data
+    networks:
+      - docs_net
+
+  paperless-gotenberg:
+    image: docker.io/gotenberg/gotenberg:8.34.0
+    container_name: paperless-gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=file:///tmp/.*
+    networks:
+      - docs_net
+
+  paperless-tika:
+    image: docker.io/apache/tika:3.3.1.0-full
+    container_name: paperless-tika
+    restart: unless-stopped
+    networks:
+      - docs_net
+
+  paperless-webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
+    container_name: paperless-webserver
+    restart: unless-stopped
+    depends_on:
+      - paperless-broker
+      - paperless-db
+      - paperless-gotenberg
+      - paperless-tika
+    environment:
+      USERMAP_UID: ${PUID}
+      USERMAP_GID: ${PGID}
+      PAPERLESS_REDIS: redis://paperless-broker:6379
+      PAPERLESS_DBENGINE: postgresql
+      PAPERLESS_DBHOST: paperless-db
+      PAPERLESS_DBNAME: ${PAPERLESS_DBNAME}
+      PAPERLESS_DBUSER: ${PAPERLESS_DBUSER}
+      PAPERLESS_DBPASS: ${PAPERLESS_DBPASS}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
+      PAPERLESS_URL: ${PAPERLESS_URL}
+      PAPERLESS_TIME_ZONE: ${TZ}
+      PAPERLESS_OCR_LANGUAGE: eng
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+    volumes:
+      - ${DATA_ROOT}/configs/paperless/data:/usr/src/paperless/data
+      - /mnt/storage/01_Documents/paperless/media:/usr/src/paperless/media
+      - /mnt/storage/01_Documents/paperless/consume:/usr/src/paperless/consume
+      - /mnt/storage/05_Backups/paperless/export:/usr/src/paperless/export
+    networks:
+      - docs_net
+      - proxy_net
+
+networks:
+  docs_net:
+  proxy_net:
+    external: true
