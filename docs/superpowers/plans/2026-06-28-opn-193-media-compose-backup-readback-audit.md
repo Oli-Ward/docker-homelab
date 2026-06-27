@@ -20,7 +20,7 @@
 - Read only: `identity/**/compose.yml`
 - Read only: `platform/**/compose*.yaml`
 
-- [ ] **Step 1: Inspect repository status and tracked compose files**
+- [x] **Step 1: Inspect repository status and tracked compose files**
 
 Run:
 
@@ -31,7 +31,7 @@ git ls-files '*compose*.yml' '*compose*.yaml'
 
 Expected: output lists current worktree changes and all Git-tracked compose files without mutating the repo.
 
-- [ ] **Step 2: Inspect ignore rules without reading real env files**
+- [x] **Step 2: Inspect ignore rules without reading real env files**
 
 Run:
 
@@ -43,7 +43,7 @@ git ls-files '*example.env' '*.env.example'
 
 Expected: `.env`/secret-bearing rules are visible, real secret files are not printed, and example env files are listed if tracked.
 
-- [ ] **Step 3: Check whether real env files are ignored by Git**
+- [x] **Step 3: Check whether real env files are ignored by Git**
 
 Run:
 
@@ -63,7 +63,7 @@ Expected: ignored env paths, if present, are shown by path only. Do not open or 
 - Read only: `docs/**/*.md`
 - Read only: `Taskfile.yml`
 
-- [ ] **Step 1: Search repo documentation for backup and restore references**
+- [x] **Step 1: Search repo documentation for backup and restore references**
 
 Run:
 
@@ -73,7 +73,7 @@ rg -n --hidden -g '!*.env' -g '!**/.env' -g '!**/.git/**' '(backup|restore|readb
 
 Expected: documentation and config references are captured without secret file contents.
 
-- [ ] **Step 2: Inspect live Docker state read-only if useful for current compose locations**
+- [x] **Step 2: Inspect live Docker state read-only if useful for current compose locations**
 
 Run:
 
@@ -83,7 +83,7 @@ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Labels}}'
 
 Expected: current containers and labels are visible. Do not stop, restart, pull, or recreate anything.
 
-- [ ] **Step 3: Inspect relevant container labels read-only if compose project paths are not clear from repo evidence**
+- [x] **Step 3: Inspect relevant container labels read-only if compose project paths are not clear from repo evidence**
 
 Run this only for specific containers where the label table indicates Compose metadata is useful:
 
@@ -98,7 +98,7 @@ Expected: Compose labels may show project/config file paths. Do not include secr
 **Files:**
 - Create: `diagnostics/backup/2026-06-28-opn-193-media-compose-backup-readback-audit.md`
 
-- [ ] **Step 1: Write the report**
+- [x] **Step 1: Write the report**
 
 Create `diagnostics/backup/2026-06-28-opn-193-media-compose-backup-readback-audit.md` with these sections:
 
@@ -122,7 +122,7 @@ Create `diagnostics/backup/2026-06-28-opn-193-media-compose-backup-readback-audi
 ## Verification Commands
 ```
 
-- [ ] **Step 2: Verify no secret-bearing files were added**
+- [x] **Step 2: Verify no secret-bearing files were added**
 
 Run:
 
@@ -133,7 +133,7 @@ git diff --name-only
 
 Expected: only the plan and audit report files are added for `OPN-193`; no `.env`, key, certificate, database, log, or runtime state files are added.
 
-- [ ] **Step 3: Prepare final Linear update**
+- [x] **Step 3: Prepare final Linear update**
 
 Comment on `OPN-193` with:
 
@@ -153,4 +153,3 @@ Commit: not committed
 Branch/PR: none
 Remaining follow-ups: None, unless the unknowns section identifies access that still needs external confirmation.
 ```
-
