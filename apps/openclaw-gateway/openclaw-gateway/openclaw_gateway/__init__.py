@@ -1,0 +1,1 @@
+"""OpenClaw internal capability gateway."""

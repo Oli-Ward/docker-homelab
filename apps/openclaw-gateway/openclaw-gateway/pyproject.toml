@@ -1,0 +1,22 @@
+[project]
+name = "openclaw-gateway"
+version = "0.1.0"
+description = "Internal OpenClaw capability gateway for selected homelab APIs"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.6",
+  "httpx==0.28.1",
+  "pydantic-settings==2.7.1",
+  "uvicorn[standard]==0.34.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest==8.3.4",
+  "pytest-asyncio==0.25.2",
+  "respx==0.22.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
