@@ -6,9 +6,8 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 COPY pyproject.toml /app/pyproject.toml
-RUN pip install --no-cache-dir "."
-
 COPY openclaw_gateway /app/openclaw_gateway
+RUN pip install --no-cache-dir "."
 
 EXPOSE 8080
 
