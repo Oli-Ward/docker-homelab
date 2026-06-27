@@ -1,0 +1,98 @@
+# Docs Stack
+
+Paperless-ngx runs here as the current document-management service.
+
+## Services
+
+- `paperless-webserver` - Paperless UI/API
+- `paperless-db` - PostgreSQL database
+- `paperless-broker` - Redis broker
+- `paperless-gotenberg` - document conversion helper
+- `paperless-tika` - text extraction helper
+
+## Paths
+
+```text
+${DATA_ROOT}/configs/paperless/data        Paperless app data
+${DATA_ROOT}/configs/paperless/postgres    PostgreSQL state
+${DATA_ROOT}/configs/paperless/redis       Redis state
+/mnt/storage/01_Documents/paperless/media  Paperless-managed live document media
+/mnt/storage/01_Documents/paperless/consume Consume drop zone
+/mnt/storage/05_Backups/paperless/export   Manual export output
+```
+
+Do not manually edit files in the live media directory. Use Paperless, exports, or the future gateway path.
+
+## Deployment
+
+Deploy this stack through Komodo using `apps/docs/compose.yml` and an untracked `apps/docs/.env` based on `example.env`.
+
+Generate `PAPERLESS_SECRET_KEY` outside Git:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Create the host directories before first deploy if Komodo does not create them:
+
+```bash
+mkdir -p /data/configs/paperless/{data,postgres,redis}
+mkdir -p /mnt/storage/01_Documents/paperless/{media,consume}
+mkdir -p /mnt/storage/05_Backups/paperless/export
+```
+
+## Access
+
+Nginx Proxy Manager should route:
+
+```text
+https://paperless.home.lab -> http://paperless-webserver:8000
+```
+
+Paperless should not publish a host port. Put Authentik Proxy Auth in front of the NPM route and keep Paperless local auth enabled.
+
+Create the initial Paperless admin user manually after deployment. Do not store admin credentials in this repository.
+
+## Gateway Token
+
+If a Paperless API token is created for later automation, store it outside Git as the gateway-owned secret. OpenClaw should use the separate gateway path, not direct Paperless credentials or filesystem access.
+
+## Manual Export
+
+Manual export target:
+
+```text
+/mnt/storage/05_Backups/paperless/export
+```
+
+Run an export from the deployed stack when needed:
+
+```bash
+docker compose -f apps/docs/compose.yml exec paperless-webserver document_exporter /usr/src/paperless/export
+```
+
+Scheduled exports, PostgreSQL backups, retention, and restore verification are tracked by OPN-155.
+
+## Smoke Test
+
+Before relying on the instance:
+
+1. Open `https://paperless.home.lab`.
+2. Confirm Authentik gates access before Paperless local auth.
+3. Sign in with the manually created Paperless admin.
+4. Upload a disposable sample document.
+5. Confirm the document is processed and searchable.
+6. Recreate the Paperless web container and confirm the document remains available.
+7. Confirm Homepage shows `Documents > Paperless-ngx`.
+
+## Rollback
+
+Normal rollback preserves data:
+
+1. Stop/remove the docs stack in Komodo.
+2. Remove or disable the NPM proxy host.
+3. Remove or disable Authentik wiring for Paperless.
+4. Remove the Homepage `Documents` entry if desired.
+5. Leave Paperless config, database, media, consume, and export directories intact.
+
+Destructive cleanup of Paperless directories must be a separate explicit action.
