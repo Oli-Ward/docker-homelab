@@ -118,6 +118,16 @@ Examples:
 
 ---
 
+## 🩺 RAM Diagnostics
+
+RAM allocation and usage snapshots live under [`diagnostics/health`](diagnostics/health/README.md).
+
+Current snapshot:
+
+* [`2026-06-28-openclaw-media-ram-snapshot.md`](diagnostics/health/2026-06-28-openclaw-media-ram-snapshot.md)
+
+---
+
 ## 🚀 Status
 
 ✅ Fully functional

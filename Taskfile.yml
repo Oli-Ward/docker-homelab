@@ -1,0 +1,79 @@
+version: "3"
+
+vars:
+  ADGUARD: docker compose -f infra/dns/adguard/compose.yml
+  NPM: docker compose -f infra/proxy/nginx-proxy-manager/compose.yml
+  AUTHENTIK: docker compose -f identity/authentik/compose.yml
+  KOMODO: docker compose -f platform/komodo/mongo.compose.yaml --env-file platform/komodo/compose.env
+
+tasks:
+  preflight:
+    desc: Check mounts, Docker, and system headroom before starting services
+    cmds:
+      - echo "== Mounts =="
+      - findmnt /data/configs || true
+      - findmnt /data/media || true
+      - findmnt /data/downloads || true
+      - test -f /data/media/.MEDIA_MOUNT && echo "media sentinel ok"
+      - test -f /data/downloads/.DOWNLOADS_MOUNT && echo "downloads sentinel ok"
+      - echo ""
+      - echo "== Disk =="
+      - df -h /data/configs /data/media /data/downloads
+      - echo ""
+      - echo "== Memory =="
+      - free -h
+      - echo ""
+      - echo "== Docker =="
+      - 'docker ps --format ''table {{"{{"}}.Names{{"}}"}}\t{{"{{"}}.Status{{"}}"}}\t{{"{{"}}.Ports{{"}}"}}'''
+
+  up:adguard:
+    desc: Start AdGuard
+    cmds:
+      - "{{.ADGUARD}} up -d"
+
+  up:npm:
+    desc: Start nginx-proxy-manager
+    cmds:
+      - "{{.NPM}} up -d"
+
+  up:authentik:
+    desc: Start Authentik (postgresql + server + worker)
+    cmds:
+      - "{{.AUTHENTIK}} up -d"
+
+  up:komodo:
+    desc: Start Komodo (mongo + core + periphery)
+    cmds:
+      - "{{.KOMODO}} up -d"
+
+  core:
+    desc: Start AdGuard, nginx-proxy-manager, Authentik, and Komodo
+    deps:
+      - preflight
+    cmds:
+      - task: up:adguard
+      - task: up:npm
+      - task: up:authentik
+      - task: up:komodo
+      - task: status
+
+  status:
+    desc: Show current container status
+    cmds:
+      - 'docker ps --format ''table {{"{{"}}.Names{{"}}"}}\t{{"{{"}}.Status{{"}}"}}\t{{"{{"}}.Ports{{"}}"}}'''
+
+  logs:core:
+    desc: Tail core infrastructure logs
+    cmds:
+      - "{{.ADGUARD}} logs --tail=100 || true"
+      - "{{.NPM}} logs --tail=100 || true"
+      - "{{.AUTHENTIK}} logs --tail=100 || true"
+      - "{{.KOMODO}} logs --tail=100 || true"
+
+  stop:core:
+    desc: Stop all core infrastructure (Komodo first, then auth, proxy, DNS)
+    cmds:
+      - "{{.KOMODO}} stop"
+      - "{{.AUTHENTIK}} stop"
+      - "{{.NPM}} stop"
+      - "{{.ADGUARD}} stop"
