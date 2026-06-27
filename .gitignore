@@ -6,6 +6,7 @@ configs/
 *.sqlite
 ssl/
 backups/
+.worktrees/
 
 # Komodo
 platform/komodo/backups/
