@@ -85,6 +85,23 @@ services:
     volumes:
       - ${DATA_ROOT}/configs/speedtest-tracker:/config
 
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    volumes:
+      - ${DATA_ROOT}/configs/n8n:/home/node/.n8n
+    networks:
+      - utilities_net
+      - proxy_net
+
 networks:
   utilities_net:
     external: true
