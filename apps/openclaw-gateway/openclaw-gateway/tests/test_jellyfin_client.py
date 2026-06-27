@@ -33,6 +33,11 @@ async def test_jellyfin_search_normalizes_items():
     result = await client.search("alien")
 
     assert route.called
+    request = route.calls.last.request
+    assert request.headers["X-Emby-Token"] == "jellyfin-secret"
+    assert request.url.params["Recursive"] == "true"
+    assert request.url.params["IncludeItemTypes"] == "Movie,Series"
+    assert request.url.params["SearchTerm"] == "alien"
     assert result.items[0].id == "abc"
     assert result.items[0].type == "movie"
     assert result.items[0].title == "Alien"
@@ -44,7 +49,7 @@ async def test_jellyfin_search_normalizes_items():
 @pytest.mark.asyncio
 @respx.mock
 async def test_jellyfin_library_normalizes_items():
-    respx.get("http://jellyfin:8096/Items").mock(
+    route = respx.get("http://jellyfin:8096/Items").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -67,6 +72,12 @@ async def test_jellyfin_library_normalizes_items():
 
     result = await client.library()
 
+    assert route.called
+    request = route.calls.last.request
+    assert request.headers["X-Emby-Token"] == "jellyfin-secret"
+    assert request.url.params["Recursive"] == "true"
+    assert request.url.params["IncludeItemTypes"] == "Movie,Series"
+    assert "SearchTerm" not in request.url.params
     assert result.items[0].id == "series-1"
     assert result.items[0].type == "series"
     assert result.items[0].title == "Severance"
