@@ -1,0 +1,46 @@
+---
+title: Homelab
+favicon: https://cdn-icons-png.flaticon.com/512/2593/2593635.png
+
+theme: dark
+color: purple
+
+background:
+  image: https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920
+  blur: md
+  saturate: 50
+  brightness: 40
+  opacity: 20
+
+layout:
+  Metrics:
+    style: row
+    columns: 4
+    icon: mdi-chart-line
+  Media & Downloads:
+    style: row
+    columns: 4
+    icon: mdi-filmstrip
+  Download Management:
+    style: row
+    columns: 4
+    icon: mdi-download
+  Documents:
+    style: row
+    columns: 4
+    icon: mdi-file-document
+  System:
+    style: row
+    columns: 4
+    icon: mdi-cog
+
+
+headerStyle: clean
+hideVersion: true
+showStats: false
+statusStyle: dot
+
+quicklaunch:
+  searchDescriptions: false
+  hideInternetSearch: false
+  hideVisitURL: true

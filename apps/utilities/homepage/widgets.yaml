@@ -1,0 +1,25 @@
+---
+- resources:
+    label: System Resources
+    cpu:
+      label: CPU
+    memory:
+      label: Memory
+    uptime: true
+    network: true
+
+- resources:
+    label: Storage
+    expanded: true
+    disk:
+      - /data
+      - /data/media
+      - /data/downloads
+
+- datetime:
+    locale: en-NZ
+    format:
+      timeStyle: short
+      dateStyle: short
+      hour12: false
+      text_size: l

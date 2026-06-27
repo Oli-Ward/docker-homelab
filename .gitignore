@@ -8,6 +8,12 @@ ssl/
 backups/
 .worktrees/
 
+# Homepage repo-managed config whitelist
+apps/utilities/homepage/*
+!apps/utilities/homepage/*.yaml
+!apps/utilities/homepage/custom.css
+!apps/utilities/homepage/custom.js
+
 # Komodo
 platform/komodo/backups/
 platform/komodo/compose.env

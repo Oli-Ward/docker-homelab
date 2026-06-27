@@ -1,0 +1,4 @@
+/* Homepage: normalize service card heights without hiding widget stats */
+div[class*="service-card"] {
+    min-height: 145px;
+}

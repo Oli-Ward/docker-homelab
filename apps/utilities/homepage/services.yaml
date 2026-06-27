@@ -1,0 +1,230 @@
+---
+
+# Metrics
+- Metrics:
+    - Containers:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: containers
+          refreshInterval: 5000
+          version: 4
+
+    - Top Processes:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: process
+          refreshInterval: 5000
+          version: 4
+
+    - Speedtest:
+        widget:
+          type: speedtest
+          url: http://speedtest-tracker:80
+          version: 2
+          key: "{{HOMEPAGE_VAR_SPEEDTEST_API_KEY}}"
+          bitratePrecision: 3
+
+    - CPU Usage:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: cpu
+          chart: true
+          refreshInterval: 5000
+          version: 4
+
+    - Memory Usage:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: memory
+          chart: true
+          refreshInterval: 5000
+          version: 4
+
+    - Network Usage:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: network:eth0
+          chart: true
+          refreshInterval: 5000
+          version: 4
+
+    - Disk I/O:
+        widget:
+          type: glances
+          url: http://glances:61208
+          metric: disk:sda
+          refreshInterval: 5000
+          version: 4
+
+# Media & Downloads
+- Media & Downloads:
+    - Jellyfin:
+        icon: jellyfin.png
+        href: https://jellyfin.home.lab
+        description: Media Server
+        widget:
+          type: jellyfin
+          url: http://jellyfin:8096
+          key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+
+    - qBittorrent:
+        icon: qbittorrent.png
+        href: https://torrent.home.lab
+        description: Torrents
+        widget:
+          type: qbittorrent
+          url: http://gluetun:8080
+          username: oliward
+          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+
+    - NZBGet:
+        icon: nzbget.png
+        href: https://usenet.home.lab
+        description: Usenet
+        widget:
+          type: nzbget
+          url: http://gluetun:6789
+          username: oliward
+          password: "{{HOMEPAGE_VAR_NZBGET_PASSWORD}}"
+
+    - Jellyseerr:
+        icon: jellyseerr.png
+        href: https://request.home.lab
+        description: Request Media
+        widget:
+          type: jellyseerr
+          url: http://jellyseerr:5055
+          key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
+
+
+# Download Management
+- Download Management:
+    - Prowlarr:
+        icon: prowlarr.png
+        href: https://prowlarr.home.lab
+        description: Indexers
+        widget:
+          type: prowlarr
+          url: http://prowlarr:9696
+          key: "{{HOMEPAGE_VAR_PROWLARR_API_KEY}}"
+
+    - Radarr:
+        icon: radarr.png
+        href: https://radarr.home.lab
+        description: Movies
+        widget:
+          type: radarr
+          url: http://radarr:7878
+          key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
+
+    - Sonarr:
+        icon: sonarr.png
+        href: https://sonarr.home.lab
+        description: TV Shows
+        widget:
+          type: sonarr
+          url: http://sonarr:8989
+          key: "{{HOMEPAGE_VAR_SONARR_API_KEY}}"
+
+    - Bazarr:
+        icon: bazarr.png
+        href: https://bazarr.home.lab
+        description: Subtitles
+        widget:
+          type: bazarr
+          url: http://bazarr:6767
+          key: "{{HOMEPAGE_VAR_BAZARR_API_KEY}}"
+          missingEpisodes: true
+          missingMovies: true
+
+# Documents
+- Documents:
+    - Paperless-ngx:
+        icon: paperless-ngx.png
+        href: https://paperless.home.lab
+        description: Documents
+
+# System
+- System:
+    - Komodo:
+        icon: komodo.png
+        href: https://komodo.home.lab
+        description: Container Manager
+        widget:
+          type: komodo
+          url: http://komodo-core-1:9120
+          key: "{{HOMEPAGE_VAR_KOMODO_API_KEY}}"
+          secret: "{{HOMEPAGE_VAR_KOMODO_API_SECRET}}"
+
+    - Tailscale:
+        icon: tailscale.png
+        href: https://login.tailscale.com
+        description: VPN Mesh
+        widget:
+          type: tailscale
+          deviceid: n8opE9msDN11CNTRL
+          key: "{{HOMEPAGE_VAR_TAILSCALE_API_KEY}}"
+
+    - Gluetun:
+        icon: gluetun.png
+        href: https://gluetun.home.lab
+        description: NordVPN
+        widget:
+          type: gluetun
+          url: http://gluetun:8000
+          version: 1
+
+    - AdGuard:
+        icon: adguard-home.png
+        href: https://adguard.home.lab
+        description: DNS Ad Blocker
+        widget:
+          type: adguard
+          url: http://adguard:80
+          username: oliward
+          password: "{{HOMEPAGE_VAR_ADGUARD_PASSWORD}}"
+
+    - Authentik:
+        icon: authentik.png
+        href: https://auth.home.lab
+        description: Identity Provider
+        widget:
+          type: authentik
+          version: 2
+          url: http://authentik-server:9000
+          key: "{{HOMEPAGE_VAR_AUTHENTIK_API_KEY}}"
+
+    - Nginx Proxy Manager:
+        icon: nginx-proxy-manager.png
+        href: http://192.168.1.103:81
+        description: Reverse Proxy
+        widget:
+          type: npm
+          url: http://nginx-proxy-manager:81
+          username: oliver.ward94@gmail.com
+          password: "{{HOMEPAGE_VAR_NPM_PASSWORD}}"
+
+    - Cleanuparr:
+        icon: mdi-broom
+        href: https://cleanup.home.lab
+        description: Cleanup
+        widget:
+          type: customapi
+          url: http://cleanuparr:11011/api/stats
+          headers:
+            X-Api-Key: "{{HOMEPAGE_VAR_CLEANUPARR_API_KEY}}"
+          mappings:
+              - field: events.totalCount
+                label: Events (24h)
+                format: number
+              - field: strikes.totalCount
+                label: Strikes (24h)
+                format: number
+              - field: strikes.itemsRemoved
+                label: Removed
+                format: number
