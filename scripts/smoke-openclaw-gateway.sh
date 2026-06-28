@@ -34,4 +34,32 @@ if [[ "${search_status}" != "200" ]]; then
   exit 1
 fi
 
+if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
+  sonarr_status="$(
+    curl -fsS \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -H "Authorization: Bearer ${gateway_token}" \
+      "${gateway_url%/}/v1/media/sonarr/series"
+  )"
+
+  if [[ "${sonarr_status}" != "200" ]]; then
+    echo "Authenticated Sonarr series check failed with HTTP ${sonarr_status}." >&2
+    exit 1
+  fi
+
+  radarr_status="$(
+    curl -fsS \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -H "Authorization: Bearer ${gateway_token}" \
+      "${gateway_url%/}/v1/media/radarr/movies"
+  )"
+
+  if [[ "${radarr_status}" != "200" ]]; then
+    echo "Authenticated Radarr movies check failed with HTTP ${radarr_status}." >&2
+    exit 1
+  fi
+fi
+
 echo "OpenClaw gateway smoke test passed."

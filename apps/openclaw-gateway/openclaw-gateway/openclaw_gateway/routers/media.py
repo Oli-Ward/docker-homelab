@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,14 +7,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.jellyfin import JellyfinClient
 from openclaw_gateway.clients.jellyseerr import JellyseerrClient
-from openclaw_gateway.schemas.media import MediaSearchResponse
+from openclaw_gateway.clients.radarr import RadarrClient
+from openclaw_gateway.clients.sonarr import SonarrClient
+from openclaw_gateway.schemas.media import (
+    MediaSearchResponse,
+    MovieSummaryResponse,
+    SeriesSummaryResponse,
+)
 from openclaw_gateway.settings import GatewaySettings
+
+
+ResponseT = TypeVar("ResponseT")
 
 
 async def _map_upstream_errors(
     upstream_name: str,
-    request: Callable[[], Awaitable[MediaSearchResponse]],
-) -> MediaSearchResponse:
+    request: Callable[[], Awaitable[ResponseT]],
+) -> ResponseT:
     try:
         return await request()
     except httpx.TimeoutException as exc:
@@ -53,6 +63,20 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
+    def sonarr_client() -> SonarrClient:
+        return SonarrClient(
+            base_url=str(settings.sonarr_url),
+            api_key=settings.sonarr_api_key,
+            timeout_seconds=settings.upstream_timeout_seconds,
+        )
+
+    def radarr_client() -> RadarrClient:
+        return RadarrClient(
+            base_url=str(settings.radarr_url),
+            api_key=settings.radarr_api_key,
+            timeout_seconds=settings.upstream_timeout_seconds,
+        )
+
     @router.get("/jellyfin/library")
     async def jellyfin_library() -> MediaSearchResponse:
         return await _map_upstream_errors("jellyfin", jellyfin_client().library)
@@ -64,5 +88,13 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
     @router.get("/jellyseerr/search")
     async def jellyseerr_search(q: str) -> MediaSearchResponse:
         return await _map_upstream_errors("jellyseerr", lambda: jellyseerr_client().search(q))
+
+    @router.get("/sonarr/series")
+    async def sonarr_series() -> SeriesSummaryResponse:
+        return await _map_upstream_errors("sonarr", sonarr_client().series)
+
+    @router.get("/radarr/movies")
+    async def radarr_movies() -> MovieSummaryResponse:
+        return await _map_upstream_errors("radarr", radarr_client().movies)
 
     return router

@@ -2,7 +2,16 @@ import httpx
 import pytest
 
 from openclaw_gateway.main import create_app
-from openclaw_gateway.schemas.media import MediaItem, MediaSearchResponse
+from openclaw_gateway.schemas.media import (
+    MediaItem,
+    MediaSearchResponse,
+    MovieStatistics,
+    MovieSummary,
+    MovieSummaryResponse,
+    SeriesStatistics,
+    SeriesSummary,
+    SeriesSummaryResponse,
+)
 from openclaw_gateway.settings import GatewaySettings
 
 
@@ -13,6 +22,10 @@ def make_settings() -> GatewaySettings:
         jellyfin_api_key="jellyfin-secret",
         jellyseerr_url="http://jellyseerr:5055",
         jellyseerr_api_key="jellyseerr-secret",
+        sonarr_url="http://sonarr:8989",
+        sonarr_api_key="sonarr-secret",
+        radarr_url="http://radarr:7878",
+        radarr_api_key="radarr-secret",
         upstream_timeout_seconds=5.0,
     )
 
@@ -128,6 +141,140 @@ async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
     assert response.status_code == 200
     assert response.json()["items"][0]["request_status"] == "approved"
     assert response.json()["items"][0]["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_sonarr_series_route_requires_auth():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/v1/media/sonarr/series")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_sonarr_series_route_returns_normalized_items(monkeypatch):
+    async def series(self) -> SeriesSummaryResponse:
+        return SeriesSummaryResponse(
+            items=[
+                SeriesSummary(
+                    id="12",
+                    tvdb_id=12345,
+                    title="Severance",
+                    year=2022,
+                    status="continuing",
+                    monitored=True,
+                    path="/tv/Severance",
+                    quality_profile_id=3,
+                    statistics=SeriesStatistics(
+                        season_count=2,
+                        episode_file_count=10,
+                        episode_count=19,
+                        total_episode_count=19,
+                        size_on_disk=123456789,
+                    ),
+                    tags=[4, 9],
+                )
+            ]
+        )
+
+    monkeypatch.setattr("openclaw_gateway.routers.media.SonarrClient.series", series)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/sonarr/series",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "id": "12",
+                "tvdb_id": 12345,
+                "title": "Severance",
+                "year": 2022,
+                "status": "continuing",
+                "monitored": True,
+                "path": "/tv/Severance",
+                "quality_profile_id": 3,
+                "statistics": {
+                    "season_count": 2,
+                    "episode_file_count": 10,
+                    "episode_count": 19,
+                    "total_episode_count": 19,
+                    "size_on_disk": 123456789,
+                },
+                "tags": [4, 9],
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_radarr_movies_route_requires_auth():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/v1/media/radarr/movies")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_radarr_movies_route_returns_normalized_items(monkeypatch):
+    async def movies(self) -> MovieSummaryResponse:
+        return MovieSummaryResponse(
+            items=[
+                MovieSummary(
+                    id="34",
+                    tmdb_id=348,
+                    title="Alien",
+                    year=1979,
+                    status="released",
+                    monitored=True,
+                    has_file=True,
+                    available=True,
+                    path="/movies/Alien (1979)",
+                    quality_profile_id=2,
+                    statistics=MovieStatistics(
+                        movie_file_count=1,
+                        size_on_disk=987654321,
+                    ),
+                    tags=[7],
+                )
+            ]
+        )
+
+    monkeypatch.setattr("openclaw_gateway.routers.media.RadarrClient.movies", movies)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/radarr/movies",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "id": "34",
+                "tmdb_id": 348,
+                "title": "Alien",
+                "year": 1979,
+                "status": "released",
+                "monitored": True,
+                "has_file": True,
+                "available": True,
+                "path": "/movies/Alien (1979)",
+                "quality_profile_id": 2,
+                "statistics": {
+                    "movie_file_count": 1,
+                    "size_on_disk": 987654321,
+                },
+                "tags": [7],
+            }
+        ]
+    }
 
 
 @pytest.mark.asyncio

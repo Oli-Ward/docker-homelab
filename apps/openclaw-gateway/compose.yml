@@ -11,6 +11,10 @@ services:
       - JELLYFIN_API_KEY=${JELLYFIN_API_KEY:?Set JELLYFIN_API_KEY in Komodo or apps/openclaw-gateway/.env}
       - JELLYSEERR_URL=${JELLYSEERR_URL:-http://jellyseerr:5055}
       - JELLYSEERR_API_KEY=${JELLYSEERR_API_KEY:?Set JELLYSEERR_API_KEY in Komodo or apps/openclaw-gateway/.env}
+      - SONARR_URL=${SONARR_URL:-http://sonarr:8989}
+      - SONARR_API_KEY=${SONARR_API_KEY:?Set SONARR_API_KEY in Komodo or apps/openclaw-gateway/.env}
+      - RADARR_URL=${RADARR_URL:-http://radarr:7878}
+      - RADARR_API_KEY=${RADARR_API_KEY:?Set RADARR_API_KEY in Komodo or apps/openclaw-gateway/.env}
       - UPSTREAM_TIMEOUT_SECONDS=${UPSTREAM_TIMEOUT_SECONDS:-5}
     networks:
       - media_net

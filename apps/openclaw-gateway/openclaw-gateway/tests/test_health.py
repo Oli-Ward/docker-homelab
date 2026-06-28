@@ -13,6 +13,10 @@ async def test_health_is_public():
         jellyfin_api_key="jellyfin-secret",
         jellyseerr_url="http://jellyseerr:5055",
         jellyseerr_api_key="jellyseerr-secret",
+        sonarr_url="http://sonarr:8989",
+        sonarr_api_key="sonarr-secret",
+        radarr_url="http://radarr:7878",
+        radarr_api_key="radarr-secret",
         upstream_timeout_seconds=5.0,
     )
     transport = httpx.ASGITransport(app=create_app(settings=settings))

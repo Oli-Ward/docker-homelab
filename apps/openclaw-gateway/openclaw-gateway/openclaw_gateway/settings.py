@@ -13,6 +13,10 @@ class GatewaySettings(BaseSettings):
     jellyfin_api_key: Annotated[str, Field(min_length=1)]
     jellyseerr_url: AnyHttpUrl
     jellyseerr_api_key: Annotated[str, Field(min_length=1)]
+    sonarr_url: AnyHttpUrl
+    sonarr_api_key: Annotated[str, Field(min_length=1)]
+    radarr_url: AnyHttpUrl
+    radarr_api_key: Annotated[str, Field(min_length=1)]
     upstream_timeout_seconds: Annotated[float, Field(gt=0)] = 5.0
 
 
