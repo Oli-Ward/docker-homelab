@@ -15,14 +15,14 @@ if [[ -z "${gateway_token}" ]]; then
   exit 2
 fi
 
-health_status="$(curl -fsS -o /dev/null -w "%{http_code}" "${gateway_url%/}/health")"
+health_status="$(curl -sS -o /dev/null -w "%{http_code}" "${gateway_url%/}/health")"
 if [[ "${health_status}" != "200" ]]; then
   echo "Health check failed with HTTP ${health_status}." >&2
   exit 1
 fi
 
 search_status="$(
-  curl -fsS \
+  curl -sS \
     -o /dev/null \
     -w "%{http_code}" \
     -H "Authorization: Bearer ${gateway_token}" \
@@ -36,7 +36,7 @@ fi
 
 if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
   sonarr_status="$(
-    curl -fsS \
+    curl -sS \
       -o /dev/null \
       -w "%{http_code}" \
       -H "Authorization: Bearer ${gateway_token}" \
@@ -49,7 +49,7 @@ if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
   fi
 
   radarr_status="$(
-    curl -fsS \
+    curl -sS \
       -o /dev/null \
       -w "%{http_code}" \
       -H "Authorization: Bearer ${gateway_token}" \

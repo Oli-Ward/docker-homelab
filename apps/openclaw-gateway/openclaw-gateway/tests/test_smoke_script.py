@@ -1,0 +1,79 @@
+import os
+import subprocess
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SMOKE_SCRIPT = REPO_ROOT / "scripts" / "smoke-openclaw-gateway.sh"
+
+
+def write_fake_curl(tmp_path: Path, sonarr_status: str = "200", radarr_status: str = "200") -> Path:
+    curl = tmp_path / "curl"
+    curl.write_text(
+        f"""#!/usr/bin/env bash
+set -euo pipefail
+
+has_fail=0
+for arg in "$@"; do
+  if [[ "$arg" == "-f"* ]]; then
+    has_fail=1
+  fi
+done
+
+url="${{@: -1}}"
+case "$url" in
+  */health)
+    printf "200"
+    ;;
+  */v1/media/jellyfin/search*)
+    printf "200"
+    ;;
+  */v1/media/sonarr/series)
+    if [[ "$has_fail" == "1" && "{sonarr_status}" -ge 400 ]]; then
+      echo "curl: (22) The requested URL returned error: {sonarr_status}" >&2
+      exit 22
+    fi
+    printf "{sonarr_status}"
+    ;;
+  */v1/media/radarr/movies)
+    if [[ "$has_fail" == "1" && "{radarr_status}" -ge 400 ]]; then
+      echo "curl: (22) The requested URL returned error: {radarr_status}" >&2
+      exit 22
+    fi
+    printf "{radarr_status}"
+    ;;
+  *)
+    echo "unexpected URL: $url" >&2
+    exit 99
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    curl.chmod(0o755)
+    return curl
+
+
+def smoke_env(tmp_path: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["PATH"] = f"{tmp_path}:{env['PATH']}"
+    env["GATEWAY_URL"] = "http://gateway.example"
+    env["GATEWAY_AUTH_TOKEN"] = "gateway-secret"
+    env["CHECK_ARR_ENDPOINTS"] = "1"
+    return env
+
+
+def test_smoke_script_reports_sonarr_http_status(tmp_path: Path):
+    write_fake_curl(tmp_path, sonarr_status="404")
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=smoke_env(tmp_path),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "Authenticated Sonarr series check failed with HTTP 404." in result.stderr
