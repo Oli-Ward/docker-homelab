@@ -142,15 +142,13 @@
           missingEpisodes: true
           missingMovies: true
 
-# Documents
-- Documents:
+# System
+- System:
     - Paperless-ngx:
         icon: paperless-ngx.png
         href: https://paperless.home.lab
         description: Documents
 
-# System
-- System:
     - Komodo:
         icon: komodo.png
         href: https://komodo.home.lab
