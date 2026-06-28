@@ -4,7 +4,7 @@
 
 **Goal:** Add a dedicated `apps/docs` Paperless-ngx stack, document deployment/validation, and add a link-only Paperless entry to live Homepage config.
 
-**Architecture:** Paperless runs as its own Komodo-managed Docker Compose stack with a Paperless web container, PostgreSQL database, Redis broker, Gotenberg, and Tika. Paperless web is reachable only through `proxy_net` and Nginx Proxy Manager; support services remain on an internal docs network. Durable app state stays under `${DATA_ROOT}/configs/paperless`, while document media/consume/export paths bind to long-term storage.
+**Architecture:** Paperless runs as its own Komodo-managed Docker Compose stack with a Paperless web container, PostgreSQL database, Redis broker, Gotenberg, and Tika. Paperless web is reachable only through `proxy_net` and Nginx Proxy Manager; support services remain on an internal docs network. Durable app state, document media, consume, and export paths stay under `${APPDATA_ROOT}/paperless`.
 
 **Tech Stack:** Docker Compose, Paperless-ngx `2.20.15`, PostgreSQL `18.4`, Redis `8.2.7`, Gotenberg `8.34.0`, Apache Tika `3.3.1.0-full`, Homepage YAML, Komodo deployment.
 
@@ -13,7 +13,8 @@
 ## Implementation Deviations
 
 - PostgreSQL 18 uses `/var/lib/postgresql` as the container bind target in `apps/docs/compose.yml`; the original `/var/lib/postgresql/data` target caused fresh init failure.
-- `/mnt/storage` was not mounted inside the media Ubuntu VM during validation, so Paperless media, consume, and export paths now live under `${DATA_ROOT}/configs/paperless`.
+- `/mnt/storage` was not mounted inside the media Ubuntu VM during validation, so Paperless media, consume, and export paths initially lived under `/data/configs/paperless`.
+- OPN-158 later moved repo-managed mutable app state to `${APPDATA_ROOT}/paperless`. Live inspection on 2026-06-28 still showed the running Paperless containers mounted from `/data/configs/paperless`, so the stack needs an OPN-158 state copy and Komodo redeploy before live state matches current repo config.
 - Long-term archive/off-host backup storage remains deferred to OPN-155 and the storage-mount follow-up.
 
 ## File Map
@@ -21,8 +22,8 @@
 - Create `apps/docs/compose.yml`: Paperless stack definition with explicit container names, internal network, `proxy_net`, bind mounts, pinned image tags, and no host port publication.
 - Create `apps/docs/example.env`: committed placeholder env file documenting required deployment variables only.
 - Create `apps/docs/README.md`: short deployment, NPM/Auth, admin setup, manual export, validation, and rollback notes.
-- Modify live `/data/configs/homepage/services.yaml`: add a link-only `Documents > Paperless-ngx` entry.
-- Modify live `/data/configs/homepage/settings.yaml`: add `Documents` layout between `Download Management` and `System`.
+- Modify repo-managed `apps/utilities/homepage/services.yaml`: add a link-only `Documents > Paperless-ngx` entry.
+- Modify repo-managed `apps/utilities/homepage/settings.yaml`: add `Documents` layout between `Download Management` and `System`.
 - Keep `backups/homepage/*` untouched.
 - Keep real `apps/docs/.env` untracked and do not create it in this plan.
 
@@ -48,7 +49,7 @@ services:
     container_name: paperless-broker
     restart: unless-stopped
     volumes:
-      - ${DATA_ROOT}/configs/paperless/redis:/data
+      - ${APPDATA_ROOT}/paperless/redis:/data
     networks:
       - docs_net
 
@@ -61,7 +62,7 @@ services:
       POSTGRES_USER: ${PAPERLESS_DBUSER}
       POSTGRES_PASSWORD: ${PAPERLESS_DBPASS}
     volumes:
-      - ${DATA_ROOT}/configs/paperless/postgres:/var/lib/postgresql/data
+      - ${APPDATA_ROOT}/paperless/postgres:/var/lib/postgresql
     networks:
       - docs_net
 
@@ -109,10 +110,10 @@ services:
       PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
       PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
     volumes:
-      - ${DATA_ROOT}/configs/paperless/data:/usr/src/paperless/data
-      - /mnt/storage/01_Documents/paperless/media:/usr/src/paperless/media
-      - /mnt/storage/01_Documents/paperless/consume:/usr/src/paperless/consume
-      - /mnt/storage/05_Backups/paperless/export:/usr/src/paperless/export
+      - ${APPDATA_ROOT}/paperless/data:/usr/src/paperless/data
+      - ${APPDATA_ROOT}/paperless/media:/usr/src/paperless/media
+      - ${APPDATA_ROOT}/paperless/consume:/usr/src/paperless/consume
+      - ${APPDATA_ROOT}/paperless/export:/usr/src/paperless/export
     networks:
       - docs_net
       - proxy_net
@@ -128,7 +129,7 @@ networks:
 Run:
 
 ```bash
-PUID=1000 PGID=1000 TZ=Pacific/Auckland DATA_ROOT=/data PAPERLESS_DBNAME=paperless PAPERLESS_DBUSER=paperless PAPERLESS_DBPASS=example-password PAPERLESS_SECRET_KEY=example-secret-key PAPERLESS_URL=https://paperless.home.lab docker compose -f apps/docs/compose.yml config
+PUID=1000 PGID=1000 TZ=Pacific/Auckland DATA_ROOT=/data APPDATA_ROOT=/srv/appdata PAPERLESS_DBNAME=paperless PAPERLESS_DBUSER=paperless PAPERLESS_DBPASS=example-password PAPERLESS_SECRET_KEY=example-secret-key PAPERLESS_URL=https://paperless.home.lab docker compose -f apps/docs/compose.yml config
 ```
 
 Expected: exit code `0`, rendered services for all five Paperless containers, no `ports:` section for `paperless-webserver`.
@@ -161,6 +162,7 @@ PUID=1000
 PGID=1000
 TZ=Pacific/Auckland
 DATA_ROOT=/data
+APPDATA_ROOT=/srv/appdata
 
 PAPERLESS_URL=https://paperless.home.lab
 PAPERLESS_DBNAME=paperless
@@ -216,15 +218,17 @@ Paperless-ngx runs here as the current document-management service.
 ## Paths
 
 ```text
-${DATA_ROOT}/configs/paperless/data       Paperless app data
-${DATA_ROOT}/configs/paperless/postgres   PostgreSQL state
-${DATA_ROOT}/configs/paperless/redis      Redis state
-/mnt/storage/01_Documents/paperless/media Paperless-managed live document media
-/mnt/storage/01_Documents/paperless/consume Consume drop zone
-/mnt/storage/05_Backups/paperless/export  Manual export output
+${APPDATA_ROOT}/paperless/data        Paperless app data
+${APPDATA_ROOT}/paperless/postgres    PostgreSQL state
+${APPDATA_ROOT}/paperless/redis       Redis state
+${APPDATA_ROOT}/paperless/media       Paperless-managed live document media
+${APPDATA_ROOT}/paperless/consume     Consume drop zone
+${APPDATA_ROOT}/paperless/export      Manual export output
 ```
 
-Do not manually edit files in the live media directory. Use Paperless, exports, or the future gateway path.
+Do not manually edit files in the live Paperless media directory. Use Paperless, exports, or the future gateway path.
+
+Paperless state now belongs under `${APPDATA_ROOT}/paperless`. Before redeploying this stack with the new path, copy the existing `/data/configs/paperless` tree to the configured app-state root and confirm backups/checkpoints exist.
 
 ## Deployment
 
@@ -239,9 +243,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 Create the host directories before first deploy if Komodo does not create them:
 
 ```bash
-mkdir -p /data/configs/paperless/{data,postgres,redis}
-mkdir -p /mnt/storage/01_Documents/paperless/{media,consume}
-mkdir -p /mnt/storage/05_Backups/paperless/export
+mkdir -p /srv/appdata/paperless/{data,postgres,redis,media,consume,export}
 ```
 
 ## Access
@@ -265,7 +267,7 @@ If a Paperless API token is created for later automation, store it outside Git a
 Manual export target:
 
 ```text
-/mnt/storage/05_Backups/paperless/export
+${APPDATA_ROOT}/paperless/export
 ```
 
 Run an export from the deployed stack when needed:
@@ -296,7 +298,7 @@ Normal rollback preserves data:
 2. Remove or disable the NPM proxy host.
 3. Remove or disable Authentik wiring for Paperless.
 4. Remove the Homepage `Documents` entry if desired.
-5. Leave Paperless config, database, media, consume, and export directories intact.
+5. Leave Paperless app-state, database, media, consume, and export directories intact.
 
 Destructive cleanup of Paperless directories must be a separate explicit action.
 ```
@@ -322,26 +324,26 @@ git commit -m "OPN-154: document Paperless docs stack"
 
 Expected: commit succeeds and includes only `apps/docs/README.md`.
 
-## Task 4: Update Live Homepage Config
+## Task 4: Update Repo-Managed Homepage Config
 
 **Files:**
-- Modify: `/data/configs/homepage/services.yaml`
-- Modify: `/data/configs/homepage/settings.yaml`
+- Modify: `apps/utilities/homepage/services.yaml`
+- Modify: `apps/utilities/homepage/settings.yaml`
 
-- [ ] **Step 1: Back up live Homepage files to `/tmp`**
+- [ ] **Step 1: Inspect the current repo-managed Homepage files**
 
 Run:
 
 ```bash
-cp /data/configs/homepage/services.yaml /tmp/homepage-services.yaml.opn-154.bak
-cp /data/configs/homepage/settings.yaml /tmp/homepage-settings.yaml.opn-154.bak
+sed -n '120,170p' apps/utilities/homepage/services.yaml
+sed -n '20,40p' apps/utilities/homepage/settings.yaml
 ```
 
-Expected: both backup files exist under `/tmp`.
+Expected: the `Download Management` and `System` sections are visible so `Documents` can be inserted between them.
 
 - [ ] **Step 2: Add `Documents` service section**
 
-Insert this section in `/data/configs/homepage/services.yaml` after the `Download Management` section and before the `System` section:
+Insert this section in `apps/utilities/homepage/services.yaml` after the `Download Management` section and before the `System` section:
 
 ```yaml
 # Documents
@@ -354,7 +356,7 @@ Insert this section in `/data/configs/homepage/services.yaml` after the `Downloa
 
 - [ ] **Step 3: Add `Documents` layout**
 
-Insert this layout block in `/data/configs/homepage/settings.yaml` after `Download Management` and before `System`:
+Insert this layout block in `apps/utilities/homepage/settings.yaml` after `Download Management` and before `System`:
 
 ```yaml
   Documents:
@@ -368,20 +370,26 @@ Insert this layout block in `/data/configs/homepage/settings.yaml` after `Downlo
 Run:
 
 ```bash
-ruby -e 'require "yaml"; YAML.load_file("/data/configs/homepage/services.yaml"); YAML.load_file("/data/configs/homepage/settings.yaml"); puts "homepage yaml ok"'
+python3 - <<'PY'
+import yaml
+for path in ['apps/utilities/homepage/services.yaml', 'apps/utilities/homepage/settings.yaml']:
+    with open(path) as f:
+        yaml.safe_load(f)
+    print(f'{path}: ok')
+PY
 ```
 
-Expected: prints `homepage yaml ok` and exits `0`.
+Expected: both files print `ok` and the command exits `0`.
 
 - [ ] **Step 5: Verify no backup snapshot was touched**
 
 Run:
 
 ```bash
-git status --short backups /data/configs/homepage/services.yaml /data/configs/homepage/settings.yaml
+git status --short apps/utilities/homepage backups
 ```
 
-Expected: no tracked `backups/homepage/*` changes. Live `/data` files may not appear in Git status because they are outside the repo.
+Expected: only intentional `apps/utilities/homepage` changes appear, and no tracked `backups/homepage/*` changes appear.
 
 ## Task 5: Final Repo Verification And Linear Update
 
@@ -397,7 +405,7 @@ Expected: no tracked `backups/homepage/*` changes. Live `/data` files may not ap
 Run:
 
 ```bash
-PUID=1000 PGID=1000 TZ=Pacific/Auckland DATA_ROOT=/data PAPERLESS_DBNAME=paperless PAPERLESS_DBUSER=paperless PAPERLESS_DBPASS=example-password PAPERLESS_SECRET_KEY=example-secret-key PAPERLESS_URL=https://paperless.home.lab docker compose -f apps/docs/compose.yml config >/tmp/opn-154-compose-rendered.yml
+PUID=1000 PGID=1000 TZ=Pacific/Auckland DATA_ROOT=/data APPDATA_ROOT=/srv/appdata PAPERLESS_DBNAME=paperless PAPERLESS_DBUSER=paperless PAPERLESS_DBPASS=example-password PAPERLESS_SECRET_KEY=example-secret-key PAPERLESS_URL=https://paperless.home.lab docker compose -f apps/docs/compose.yml config >/tmp/opn-154-compose-rendered.yml
 ```
 
 Expected: exit code `0`.

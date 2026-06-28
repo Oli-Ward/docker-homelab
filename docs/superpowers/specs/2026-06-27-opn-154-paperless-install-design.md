@@ -48,26 +48,26 @@ Use the official-style Paperless Docker shape with PostgreSQL and Redis. Include
 
 ## Storage
 
-Keep application state under the existing repo convention:
+Paperless app state follows the current repo convention for mutable container state:
 
 ```text
-${DATA_ROOT}/configs/paperless/
+${APPDATA_ROOT}/paperless/
 ```
 
-For the first deployment, use `${DATA_ROOT}/configs/paperless` for Paperless payloads:
+Use one narrow Paperless tree for app state, document media, consume input, and manual exports:
 
 ```text
-${DATA_ROOT}/configs/paperless/media
-${DATA_ROOT}/configs/paperless/consume
-```
-
-Use the same Paperless config tree for manual exports until a reliable backup/archive mount is available:
-
-```text
-${DATA_ROOT}/configs/paperless/export
+${APPDATA_ROOT}/paperless/data
+${APPDATA_ROOT}/paperless/postgres
+${APPDATA_ROOT}/paperless/redis
+${APPDATA_ROOT}/paperless/media
+${APPDATA_ROOT}/paperless/consume
+${APPDATA_ROOT}/paperless/export
 ```
 
 Paperless owns the live media directory. Humans and automation should not edit files inside the live media path directly. The consume path is a narrow future-friendly drop zone, not a broad host mount. `/mnt/storage` was not mounted in the media Ubuntu VM during validation, so do not move Paperless media there until that storage is confirmed reliable and backup/export automation is ready.
+
+The initial live deployment used `/data/configs/paperless`. OPN-158 moved repo-managed app state to `${APPDATA_ROOT}`, so deployment must copy `/data/configs/paperless` to the configured app-state root and redeploy through Komodo before live state matches the current compose file.
 
 ## Network And Auth
 
@@ -97,7 +97,7 @@ If a Paperless API token is created during OPN-154, document it as gateway-owned
 
 ## Homepage
 
-Update the live Homepage config under `${DATA_ROOT}/configs/homepage`, not the `backups/homepage` snapshot files.
+Update the repo-managed Homepage config under `apps/utilities/homepage`, not the ignored live runtime files or backup snapshots.
 
 Add a `Documents` section between `Download Management` and `System`. Add a link-only entry:
 
@@ -132,7 +132,7 @@ Before OPN-154 is considered complete:
 OPN-154 defines the manual export path but does not automate backups. Document a manual export command using Paperless' exporter to write into:
 
 ```text
-${DATA_ROOT}/configs/paperless/export
+${APPDATA_ROOT}/paperless/export
 ```
 
 Scheduled export, PostgreSQL backup, retention, and restore verification are tracked by OPN-155.
@@ -145,6 +145,6 @@ Normal rollback should preserve data by default:
 - Remove or disable the NPM proxy host.
 - Remove or disable the Authentik application/provider wiring.
 - Remove the Homepage `Documents` entry if desired.
-- Leave `/data/configs/paperless` intact.
+- Leave `${APPDATA_ROOT}/paperless` intact. If the pre-migration `/data/configs/paperless` tree still exists, leave it intact as rollback material until OPN-158 has been fully validated for this stack.
 
 Destructive cleanup of Paperless config, database, media, consume, and export directories must be a separate explicit step.
