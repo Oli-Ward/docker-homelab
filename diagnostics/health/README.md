@@ -4,6 +4,54 @@ This directory holds repeatable, read-only operational checks for the homelab. I
 
 Do not start, stop, recreate, pull, prune, or update Docker resources while collecting these snapshots. Komodo remains the source of truth for deployment actions.
 
+## Before/After Heavy Job Snapshot
+
+Use `health-snapshot.sh` before heavy maintenance jobs where it would be useful to prove whether the job changed host health, Docker stability, disk pressure, RAM pressure, or recent system warnings.
+
+Good candidates:
+
+- storage migrations or large `rsync` runs
+- Proxmox or VM backups
+- media Docker updates deployed through Komodo
+- large recommendation imports
+- OpenClaw state map generation
+- Headroom or skill routing evaluations
+- Paperless imports, exports, and OCR-heavy batches
+
+Run the script from the repository root and pass a short job slug plus the command to run after `--`:
+
+```bash
+diagnostics/health/health-snapshot.sh paperless-export -- paperless-exporter --help
+diagnostics/health/health-snapshot.sh opn-177-dummy -- bash -lc 'printf "dummy job\n"; sleep 1'
+```
+
+The output path is:
+
+```text
+diagnostics/health/YYYY-MM-DD-<job>.md
+```
+
+Each report uses one combined file with these sections:
+
+```text
+# Health snapshot: <job>
+
+## Before
+## Command/job run
+## After
+## Diff / observations
+## Recommendation / follow-up
+```
+
+The checks are read-only and intentionally omit secrets, full environment output, Docker inspect environment output, private keys, certificates, and full service logs. If a deeper follow-up is needed, capture it separately with a narrow command that is safe for the specific service.
+
+The script supports both the OpenClaw VM and the media Docker host where possible:
+
+- RAM, disk, uptime, process, failed systemd unit, and recent warning/error checks run on normal Linux guests.
+- Docker checks run only when the Docker CLI is available and the daemon is reachable.
+- `systemctl`, `journalctl`, `hostnamectl`, and virtualization checks are best effort, so reports include an explanatory note when a command is unavailable.
+- The script does not deploy, restart, stop, pull, update, prune, or otherwise mutate Docker or systemd state.
+
 ## RAM Snapshot Workflow
 
 Use this workflow when deciding whether RAM should be moved between OpenClaw and the media Docker host.
