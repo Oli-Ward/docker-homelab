@@ -148,6 +148,7 @@ async def test_n8n_forward_rating_prompt_posts_minimal_payload():
     )
     client = N8nClient(
         base_url="http://n8n:5678",
+        smoke_path="/webhook/openclaw-smoke",
         rating_prompt_path="/webhook/jellyfin-rating-prompt",
         timeout_seconds=5.0,
     )
@@ -277,7 +278,7 @@ Change `N8nClient.__init__` to accept `rating_prompt_path`, store it, and add:
 
 - [ ] **Step 4: Add the media route**
 
-In `apps/openclaw-gateway/openclaw-gateway/openclaw_gateway/routers/media.py`, import `N8nClient`, `JellyfinWatchCompletedEvent`, and `JellyfinWatchCompletedResponse`. Add an `n8n_client()` factory using `settings.n8n_webhook_base_url`, `settings.n8n_jellyfin_rating_prompt_path`, and `settings.upstream_timeout_seconds`.
+In `apps/openclaw-gateway/openclaw-gateway/openclaw_gateway/routers/media.py`, import `N8nClient`, `JellyfinWatchCompletedEvent`, and `JellyfinWatchCompletedResponse`. Add an `n8n_client()` factory using `settings.n8n_webhook_base_url`, `settings.n8n_openclaw_smoke_path`, `settings.n8n_jellyfin_rating_prompt_path`, and `settings.upstream_timeout_seconds`.
 
 Add this route:
 
