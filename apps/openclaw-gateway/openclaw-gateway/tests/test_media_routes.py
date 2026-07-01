@@ -3,6 +3,7 @@ import pytest
 
 from openclaw_gateway.main import create_app
 from openclaw_gateway.schemas.media import (
+    JellyseerrRequestResponse,
     MediaItem,
     MediaSearchResponse,
     MovieStatistics,
@@ -141,6 +142,106 @@ async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
     assert response.status_code == 200
     assert response.json()["items"][0]["request_status"] == "approved"
     assert response.json()["items"][0]["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_jellyseerr_request_route_dry_run_validates_without_creating(monkeypatch):
+    async def validate_request(self, media_type: str, tmdb_id: int):
+        assert media_type == "movie"
+        assert tmdb_id == 348
+        return JellyseerrRequestResponse(
+            status="valid",
+            media_type="movie",
+            tmdb_id=348,
+            message="Request target is valid; no request was created.",
+            request_id=None,
+            duplicate=False,
+            dry_run=True,
+        )
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.JellyseerrClient.validate_request",
+        validate_request,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyseerr/requests",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "media_type": "movie",
+                "tmdb_id": 348,
+                "note": "requested by OpenClaw",
+                "dry_run": True,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "valid",
+        "media_type": "movie",
+        "tmdb_id": 348,
+        "message": "Request target is valid; no request was created.",
+        "request_id": None,
+        "duplicate": False,
+        "dry_run": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_jellyseerr_request_route_requires_auth():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyseerr/requests",
+            json={"media_type": "movie", "tmdb_id": 348, "dry_run": True},
+        )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_jellyseerr_request_route_creates_when_dry_run_is_false(monkeypatch):
+    async def create_request(self, media_type: str, tmdb_id: int):
+        assert media_type == "tv"
+        assert tmdb_id == 12345
+        return JellyseerrRequestResponse(
+            status="created",
+            media_type="tv",
+            tmdb_id=12345,
+            message="Jellyseerr request created.",
+            request_id=77,
+            duplicate=False,
+            dry_run=False,
+        )
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.JellyseerrClient.create_request",
+        create_request,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyseerr/requests",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "media_type": "tv",
+                "tmdb_id": 12345,
+                "note": "approved by Oli",
+                "dry_run": False,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "created",
+        "media_type": "tv",
+        "tmdb_id": 12345,
+        "message": "Jellyseerr request created.",
+        "request_id": 77,
+        "duplicate": False,
+        "dry_run": False,
+    }
 
 
 @pytest.mark.asyncio

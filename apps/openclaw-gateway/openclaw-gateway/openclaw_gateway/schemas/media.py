@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
 
 
 class MediaItem(BaseModel):
@@ -13,6 +15,45 @@ class MediaItem(BaseModel):
 
 class MediaSearchResponse(BaseModel):
     items: list[MediaItem]
+
+
+class JellyseerrRequestCreate(BaseModel):
+    media_type: Literal["movie", "tv"]
+    tmdb_id: Annotated[int, Field(gt=0)]
+    note: str | None = None
+    dry_run: bool = True
+
+
+class JellyseerrRequestResponse(BaseModel):
+    status: Literal["created", "duplicate", "valid"]
+    media_type: Literal["movie", "tv"]
+    tmdb_id: int
+    message: str
+    request_id: int | None = None
+    duplicate: bool
+    dry_run: bool
+
+
+class JellyfinWatchCompletedEvent(BaseModel):
+    event: str
+    item_id: Annotated[str, Field(min_length=1)]
+    item_type: Literal["movie"]
+    title: Annotated[str, Field(min_length=1)]
+    year: int | None = None
+    watched_at: Annotated[str, Field(min_length=1)]
+    user_id: str | None = None
+    completed: Literal[True]
+
+    @property
+    def dedupe_key(self) -> str:
+        return f"{self.item_id}:{self.watched_at}"
+
+
+class JellyfinWatchCompletedResponse(BaseModel):
+    status: Literal["forwarded"]
+    dedupe_key: str
+    forwarded: bool
+    message: str
 
 
 class SeriesStatistics(BaseModel):

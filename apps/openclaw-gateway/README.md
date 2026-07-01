@@ -6,9 +6,9 @@ Dockerized FastAPI gateway for selected OpenClaw homelab capabilities.
 
 OpenClaw calls this gateway over the media host LAN IP. The gateway calls upstream services over Docker networks and keeps upstream API keys on the media host.
 
-For OPN-153, the gateway exposed only read-only Jellyfin and Jellyseerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Jellyseerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers.
+For OPN-153, the gateway exposed only read-only Jellyfin and Jellyseerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Jellyseerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers. OPN-211 adds one narrow Jellyseerr write endpoint for creating media requests after confirmation.
 
-The gateway does not expose qBittorrent, NZBGet, Prowlarr, Docker logs, Paperless, n8n, raw passthrough routes, the Docker socket, host networking, or media filesystem mounts. It also does not expose raw `/api/sonarr/*` or `/api/radarr/*` passthrough paths.
+The gateway does not expose qBittorrent, NZBGet, Prowlarr, Docker logs, Paperless, n8n, raw passthrough routes, the Docker socket, host networking, or media filesystem mounts. It also does not expose raw `/api/sonarr/*`, `/api/radarr/*`, or `/api/jellyseerr/*` passthrough paths.
 
 OpenClaw should receive only:
 
@@ -26,6 +26,7 @@ GET /health
 GET /v1/media/jellyfin/library
 GET /v1/media/jellyfin/search?q=...
 GET /v1/media/jellyseerr/search?q=...
+POST /v1/media/jellyseerr/requests
 GET /v1/media/sonarr/series
 GET /v1/media/radarr/movies
 ```
@@ -41,6 +42,63 @@ All `/v1/...` endpoints require:
 ```text
 Authorization: Bearer <token>
 ```
+
+`POST /v1/media/jellyseerr/requests` accepts only this narrow request shape:
+
+```json
+{
+  "media_type": "movie",
+  "tmdb_id": 348,
+  "note": "requested by OpenClaw after Oli confirmation",
+  "dry_run": true
+}
+```
+
+Use `media_type` as `movie` or `tv`. `tmdb_id` is the TMDB ID from Jellyseerr/search context. `note` is accepted for OpenClaw workflow context but is not forwarded to Jellyseerr because the upstream request API only needs media type and media ID.
+
+Dry-run mode is the default and validates that the gateway can reach Jellyseerr without creating a request:
+
+```json
+{
+  "status": "valid",
+  "media_type": "movie",
+  "tmdb_id": 348,
+  "message": "Request target is valid; no request was created.",
+  "request_id": null,
+  "duplicate": false,
+  "dry_run": true
+}
+```
+
+Real request creation requires `dry_run: false`:
+
+```json
+{
+  "status": "created",
+  "media_type": "movie",
+  "tmdb_id": 348,
+  "message": "Jellyseerr request created.",
+  "request_id": 77,
+  "duplicate": false,
+  "dry_run": false
+}
+```
+
+Duplicate or already-requested upstream responses return a clean gateway result instead of raw Jellyseerr error details:
+
+```json
+{
+  "status": "duplicate",
+  "media_type": "movie",
+  "tmdb_id": 348,
+  "message": "Media has already been requested.",
+  "request_id": null,
+  "duplicate": true,
+  "dry_run": false
+}
+```
+
+OpenClaw policy: run with `dry_run: true` first. Before sending `dry_run: false`, OpenClaw must get explicit Oli confirmation for the exact title/media type/TMDB ID. The gateway does not approve or decline Jellyseerr requests; upstream auto-approval behavior depends only on the Jellyseerr API user's permissions.
 
 `GET /v1/media/sonarr/series` returns normalized series summaries:
 
@@ -95,7 +153,7 @@ Authorization: Bearer <token>
 }
 ```
 
-These endpoints are read-only fixed routes. Write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
+These endpoints are fixed routes. The only media write route is the narrow Jellyseerr request endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
 
 ## Environment
 
@@ -118,7 +176,7 @@ UPSTREAM_TIMEOUT_SECONDS=5
 
 `GATEWAY_AUTH_TOKEN` is the server-side variable consumed by this container. OpenClaw can store the same secret as `MEDIA_GATEWAY_TOKEN` on the client side, but Komodo must still provide `GATEWAY_AUTH_TOKEN` to the gateway stack.
 
-Do not commit `.env` or real API keys. Sonarr/Radarr API keys must stay on the media host in Komodo or the local deployment environment.
+Do not commit `.env` or real API keys. Jellyfin, Jellyseerr, Sonarr, and Radarr API keys must stay on the media host in Komodo or the local deployment environment.
 
 ## Network
 
@@ -161,3 +219,15 @@ To include the Sonarr/Radarr endpoints in the smoke test after those upstreams a
 ```bash
 CHECK_ARR_ENDPOINTS=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
 ```
+
+To include a harmless Jellyseerr request dry-run probe:
+
+```bash
+CHECK_JELLYSEERR_REQUESTS=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
+```
+
+The Jellyseerr smoke probe posts a fixed `dry_run: true` payload and does not create a real request.
+
+## Rollback
+
+Use Komodo to redeploy the previous gateway configuration or image. If rolling back from Git, revert the route/client/docs changes for OPN-211 and redeploy only the `openclaw-gateway` stack through Komodo. Do not stop, recreate, pull, or restart containers directly from this repository unless that action has been explicitly approved.

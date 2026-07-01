@@ -10,6 +10,8 @@ from openclaw_gateway.clients.jellyseerr import JellyseerrClient
 from openclaw_gateway.clients.radarr import RadarrClient
 from openclaw_gateway.clients.sonarr import SonarrClient
 from openclaw_gateway.schemas.media import (
+    JellyseerrRequestCreate,
+    JellyseerrRequestResponse,
     MediaSearchResponse,
     MovieSummaryResponse,
     SeriesSummaryResponse,
@@ -88,6 +90,27 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
     @router.get("/jellyseerr/search")
     async def jellyseerr_search(q: str) -> MediaSearchResponse:
         return await _map_upstream_errors("jellyseerr", lambda: jellyseerr_client().search(q))
+
+    @router.post("/jellyseerr/requests")
+    async def jellyseerr_request(
+        request: JellyseerrRequestCreate,
+    ) -> JellyseerrRequestResponse:
+        if request.dry_run:
+            return await _map_upstream_errors(
+                "jellyseerr",
+                lambda: jellyseerr_client().validate_request(
+                    media_type=request.media_type,
+                    tmdb_id=request.tmdb_id,
+                ),
+            )
+
+        return await _map_upstream_errors(
+            "jellyseerr",
+            lambda: jellyseerr_client().create_request(
+                media_type=request.media_type,
+                tmdb_id=request.tmdb_id,
+            ),
+        )
 
     @router.get("/sonarr/series")
     async def sonarr_series() -> SeriesSummaryResponse:
