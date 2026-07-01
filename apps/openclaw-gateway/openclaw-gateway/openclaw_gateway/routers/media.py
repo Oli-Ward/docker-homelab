@@ -7,9 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.jellyfin import JellyfinClient
 from openclaw_gateway.clients.jellyseerr import JellyseerrClient
+from openclaw_gateway.clients.n8n import N8nClient
 from openclaw_gateway.clients.radarr import RadarrClient
 from openclaw_gateway.clients.sonarr import SonarrClient
 from openclaw_gateway.schemas.media import (
+    JellyfinWatchCompletedEvent,
+    JellyfinWatchCompletedResponse,
     JellyseerrRequestCreate,
     JellyseerrRequestResponse,
     MediaSearchResponse,
@@ -65,6 +68,13 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
+    def n8n_client() -> N8nClient:
+        return N8nClient(
+            base_url=str(settings.n8n_webhook_base_url),
+            rating_prompt_path=settings.n8n_jellyfin_rating_prompt_path,
+            timeout_seconds=settings.upstream_timeout_seconds,
+        )
+
     def sonarr_client() -> SonarrClient:
         return SonarrClient(
             base_url=str(settings.sonarr_url),
@@ -86,6 +96,21 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
     @router.get("/jellyfin/search")
     async def jellyfin_search(q: str) -> MediaSearchResponse:
         return await _map_upstream_errors("jellyfin", lambda: jellyfin_client().search(q))
+
+    @router.post("/jellyfin/watch-completed")
+    async def jellyfin_watch_completed(
+        event: JellyfinWatchCompletedEvent,
+    ) -> JellyfinWatchCompletedResponse:
+        await _map_upstream_errors(
+            "n8n",
+            lambda: n8n_client().forward_rating_prompt(event),
+        )
+        return JellyfinWatchCompletedResponse(
+            status="forwarded",
+            dedupe_key=event.dedupe_key,
+            forwarded=True,
+            message="Completed movie event forwarded for rating prompt.",
+        )
 
     @router.get("/jellyseerr/search")
     async def jellyseerr_search(q: str) -> MediaSearchResponse:

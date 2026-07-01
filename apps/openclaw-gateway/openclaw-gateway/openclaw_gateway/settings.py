@@ -17,6 +17,11 @@ class GatewaySettings(BaseSettings):
     sonarr_api_key: Annotated[str, Field(min_length=1)]
     radarr_url: AnyHttpUrl
     radarr_api_key: Annotated[str, Field(min_length=1)]
+    n8n_webhook_base_url: AnyHttpUrl
+    n8n_jellyfin_rating_prompt_path: Annotated[
+        str,
+        Field(min_length=1, pattern=r"^/webhook/[A-Za-z0-9._~!$&'()*+,;=:@/-]+$"),
+    ] = "/webhook/jellyfin-rating-prompt"
     upstream_timeout_seconds: Annotated[float, Field(gt=0)] = 5.0
 
 
