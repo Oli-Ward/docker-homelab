@@ -71,6 +71,7 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
     def n8n_client() -> N8nClient:
         return N8nClient(
             base_url=str(settings.n8n_webhook_base_url),
+            smoke_path=settings.n8n_openclaw_smoke_path,
             rating_prompt_path=settings.n8n_jellyfin_rating_prompt_path,
             timeout_seconds=settings.upstream_timeout_seconds,
         )

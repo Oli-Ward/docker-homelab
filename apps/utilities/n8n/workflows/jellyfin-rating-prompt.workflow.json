@@ -1,0 +1,145 @@
+{
+  "id": "jellyfin-rating-prompt",
+  "name": "jellyfin-rating-prompt",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jellyfin-rating-prompt",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a00c5d42-1198-427e-8d56-0501973a1319",
+      "name": "Jellyfin Rating Prompt Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -520,
+        0
+      ],
+      "webhookId": "8f1c9f95-57c4-41d9-ae9f-c878c8ff6287"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8f9e53d9-4dc4-4cc6-b0cb-9b1cce49e613",
+              "name": "source",
+              "value": "={{ $json.body.source }}",
+              "type": "string"
+            },
+            {
+              "id": "d8e556fd-0844-4f3b-bf19-1420f0f1413c",
+              "name": "event",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "7aab4027-998c-468f-b32a-dfacd9d260d7",
+              "name": "item_id",
+              "value": "={{ $json.body.item_id }}",
+              "type": "string"
+            },
+            {
+              "id": "89c0ce68-2075-4d35-97cf-1c48bddcddc4",
+              "name": "title",
+              "value": "={{ $json.body.title }}",
+              "type": "string"
+            },
+            {
+              "id": "2012f940-4c29-4709-94c7-7a327d4ed298",
+              "name": "year",
+              "value": "={{ $json.body.year }}",
+              "type": "number"
+            },
+            {
+              "id": "1e9d1f22-5060-428a-a7fc-262a6b58d832",
+              "name": "watched_at",
+              "value": "={{ $json.body.watched_at }}",
+              "type": "string"
+            },
+            {
+              "id": "91a0936d-0524-4c62-9f80-2628fa36364d",
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "259b0eaf-f961-465f-994f-787bc2380a05",
+              "name": "dedupe_key",
+              "value": "={{ $json.body.dedupe_key }}",
+              "type": "string"
+            },
+            {
+              "id": "ff34e4cb-626b-4a99-b980-e7c57d3cc3d9",
+              "name": "prompt_text",
+              "value": "={{ `You finished watching ${$json.body.title}${$json.body.year ? ` (${$json.body.year})` : ''}. What rating would you give it?` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e2b9ea3b-50ff-498c-993d-81eeb7c33985",
+      "name": "Build Rating Prompt Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, workflow: 'jellyfin-rating-prompt', received: true, dedupe_key: $json.dedupe_key } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "f286bcec-5505-495d-a81a-4709377cff3b",
+      "name": "Return Gateway Ack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Jellyfin Rating Prompt Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Rating Prompt Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Rating Prompt Payload": {
+      "main": [
+        [
+          {
+            "node": "Return Gateway Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f2d05848-83ff-496f-b3d6-f2d734287c92",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

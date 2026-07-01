@@ -11,6 +11,7 @@ def write_fake_curl(
     tmp_path: Path,
     sonarr_status: str = "200",
     radarr_status: str = "200",
+    n8n_status: str = "200",
     jellyseerr_request_status: str = "200",
 ) -> Path:
     curl = tmp_path / "curl"
@@ -56,6 +57,13 @@ case "$url" in
       exit 22
     fi
     printf "{jellyseerr_request_status}"
+    ;;
+  */v1/automation/n8n/openclaw-smoke)
+    if [[ "$has_fail" == "1" && "{n8n_status}" -ge 400 ]]; then
+      echo "curl: (22) The requested URL returned error: {n8n_status}" >&2
+      exit 22
+    fi
+    printf "{n8n_status}"
     ;;
   *)
     echo "unexpected URL: $url" >&2
@@ -137,3 +145,39 @@ def test_smoke_script_reports_jellyseerr_request_dry_run_http_status(tmp_path: P
     assert "Authenticated Jellyseerr request dry-run failed with HTTP 404." in result.stderr
     assert "gateway-secret" not in result.stdout
     assert "gateway-secret" not in result.stderr
+
+
+def test_smoke_script_can_check_n8n_smoke_route(tmp_path: Path):
+    write_fake_curl(tmp_path, n8n_status="200")
+    env = smoke_env(tmp_path)
+    env["CHECK_N8N_SMOKE"] = "1"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "OpenClaw gateway smoke test passed." in result.stdout
+
+
+def test_smoke_script_reports_n8n_smoke_http_status(tmp_path: Path):
+    write_fake_curl(tmp_path, n8n_status="404")
+    env = smoke_env(tmp_path)
+    env["CHECK_N8N_SMOKE"] = "1"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "Authenticated n8n smoke check failed with HTTP 404." in result.stderr

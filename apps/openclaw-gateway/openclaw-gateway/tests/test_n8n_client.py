@@ -8,6 +8,33 @@ from openclaw_gateway.schemas.media import JellyfinWatchCompletedEvent
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_openclaw_smoke_posts_fixed_payload_and_parses_response():
+    route = respx.post("http://n8n:5678/webhook/openclaw-smoke").mock(
+        return_value=httpx.Response(
+            200,
+            json={"ok": True, "workflow": "openclaw-smoke", "received": True},
+        )
+    )
+    client = N8nClient(
+        base_url="http://n8n:5678",
+        smoke_path="/webhook/openclaw-smoke",
+        rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.openclaw_smoke(request_id="req-123")
+
+    assert route.called
+    request = route.calls.last.request
+    assert request.headers["Content-Type"] == "application/json"
+    assert request.content == b'{"source":"openclaw","test":true,"request_id":"req-123"}'
+    assert result.ok is True
+    assert result.workflow == "openclaw-smoke"
+    assert result.received is True
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_n8n_forward_rating_prompt_posts_minimal_payload():
     route = respx.post("http://n8n:5678/webhook/jellyfin-rating-prompt").mock(
         return_value=httpx.Response(
@@ -22,6 +49,7 @@ async def test_n8n_forward_rating_prompt_posts_minimal_payload():
     )
     client = N8nClient(
         base_url="http://n8n:5678",
+        smoke_path="/webhook/openclaw-smoke",
         rating_prompt_path="/webhook/jellyfin-rating-prompt",
         timeout_seconds=5.0,
     )

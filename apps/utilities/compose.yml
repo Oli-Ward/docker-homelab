@@ -113,6 +113,7 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
     volumes:
       - ${APPDATA_ROOT}/n8n:/home/node/.n8n
     networks:

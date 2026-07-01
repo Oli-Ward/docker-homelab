@@ -18,7 +18,7 @@ async def test_health_is_public():
         radarr_url="http://radarr:7878",
         radarr_api_key="radarr-secret",
         n8n_webhook_base_url="http://n8n:5678",
-        n8n_jellyfin_rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        n8n_openclaw_smoke_path="/webhook/openclaw-smoke",
         upstream_timeout_seconds=5.0,
     )
     transport = httpx.ASGITransport(app=create_app(settings=settings))
