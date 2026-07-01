@@ -11,10 +11,21 @@ class MediaItem(BaseModel):
     overview: str | None = None
     available: bool
     request_status: str | None = None
+    library: str | None = None
+    runtime_minutes: int | None = None
+    genres: list[str] = Field(default_factory=list)
+
+
+class MediaPagination(BaseModel):
+    mode: Literal["full_response", "window"] = "full_response"
+    start_index: int = 0
+    limit: int | None = None
+    total: int | None = None
 
 
 class MediaSearchResponse(BaseModel):
     items: list[MediaItem]
+    pagination: MediaPagination = Field(default_factory=MediaPagination)
 
 
 class JellyseerrRequestCreate(BaseModel):
