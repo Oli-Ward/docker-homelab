@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.jellyfin import JellyfinClient
@@ -91,8 +91,14 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
         )
 
     @router.get("/jellyfin/library")
-    async def jellyfin_library() -> MediaSearchResponse:
-        return await _map_upstream_errors("jellyfin", jellyfin_client().library)
+    async def jellyfin_library(
+        start_index: int = Query(default=0, ge=0),
+        limit: int | None = Query(default=None, ge=1, le=500),
+    ) -> MediaSearchResponse:
+        return await _map_upstream_errors(
+            "jellyfin",
+            lambda: jellyfin_client().library(start_index=start_index, limit=limit),
+        )
 
     @router.get("/jellyfin/search")
     async def jellyfin_search(q: str) -> MediaSearchResponse:

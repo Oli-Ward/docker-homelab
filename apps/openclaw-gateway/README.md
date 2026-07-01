@@ -6,7 +6,7 @@ Dockerized FastAPI gateway for selected OpenClaw homelab capabilities.
 
 OpenClaw calls this gateway over the media host LAN IP. The gateway calls upstream services over Docker networks and keeps upstream API keys on the media host.
 
-For OPN-153, the gateway exposed only read-only Jellyfin and Jellyseerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Jellyseerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers. OPN-211 adds one narrow Jellyseerr write endpoint for creating media requests after confirmation. OPN-212 adds one narrow Jellyfin watch-completion intake endpoint that forwards completed movie events to the configured OpenClaw/n8n rating-prompt workflow.
+For OPN-153, the gateway exposed only read-only Jellyfin and Jellyseerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Jellyseerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers. OPN-210 refines the Jellyfin library endpoint into a normalized inventory contract with safe metadata and pagination controls. OPN-211 adds one narrow Jellyseerr write endpoint for creating media requests after confirmation. OPN-212 adds one narrow Jellyfin watch-completion intake endpoint that forwards completed movie events to the configured OpenClaw/n8n rating-prompt workflow.
 
 The gateway does not expose qBittorrent, NZBGet, Prowlarr, Docker logs, Paperless, raw n8n admin/API access, raw passthrough routes, the Docker socket, host networking, or media filesystem mounts. It also does not expose raw `/api/sonarr/*`, `/api/radarr/*`, `/api/jellyseerr/*`, or arbitrary n8n webhook paths.
 
@@ -23,7 +23,7 @@ Do not give OpenClaw Jellyfin, Jellyseerr, Sonarr, or Radarr API keys.
 
 ```text
 GET /health
-GET /v1/media/jellyfin/library
+GET /v1/media/jellyfin/library?start_index=0&limit=50
 GET /v1/media/jellyfin/search?q=...
 GET /v1/media/jellyseerr/search?q=...
 POST /v1/media/jellyseerr/requests
@@ -44,6 +44,46 @@ All `/v1/...` endpoints require:
 ```text
 Authorization: Bearer <token>
 ```
+
+`GET /v1/media/jellyfin/library` returns a read-only, normalized Jellyfin inventory for OpenClaw availability and recommendation checks:
+
+```json
+{
+  "items": [
+    {
+      "id": "jf-item-id",
+      "type": "movie",
+      "title": "Alien",
+      "year": 1979,
+      "overview": "Space horror",
+      "available": true,
+      "request_status": null,
+      "library": "Movies",
+      "runtime_minutes": 117,
+      "genres": ["Horror", "Sci-Fi"]
+    }
+  ],
+  "pagination": {
+    "mode": "window",
+    "start_index": 0,
+    "limit": 50,
+    "total": 147
+  }
+}
+```
+
+Use `start_index` and `limit` to page through large libraries. `limit` is optional and capped at 500 by the gateway. Without `limit`, the gateway returns Jellyfin's full response and marks pagination as:
+
+```json
+{
+  "mode": "full_response",
+  "start_index": 0,
+  "limit": null,
+  "total": 147
+}
+```
+
+The Jellyfin inventory endpoint is not a raw passthrough. It returns only normalized presentation metadata and does not expose Jellyfin API keys, raw media filesystem paths, Docker access, arbitrary Jellyfin routes, or user watch history.
 
 `POST /v1/media/jellyseerr/requests` accepts only this narrow request shape:
 
@@ -209,7 +249,7 @@ Duplicate suppression happens in the OpenClaw/n8n rating-prompt workflow or down
 }
 ```
 
-These endpoints are fixed routes. The only media write route is the narrow Jellyseerr request endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
+These endpoints are fixed routes. The only media write routes are the narrow Jellyseerr request endpoint and the narrow Jellyfin completed-movie event endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
 
 `POST /v1/automation/n8n/openclaw-smoke` is a no-op automation smoke route for OPN-59. It forwards only this fixed payload to the configured n8n webhook:
 
@@ -308,7 +348,7 @@ Rollback is to disable the Jellyfin webhook/plugin entry, disable the n8n `jelly
 
 ## Network
 
-The service joins `media_net` for media services and `utilities_net` for the scoped n8n smoke webhook. It binds to the configured media host LAN IP and port:
+The service joins `media_net` for media services and `utilities_net` for the scoped n8n smoke and rating-prompt webhooks. It binds to the configured media host LAN IP and port:
 
 ```yaml
 ports:

@@ -6,6 +6,7 @@ from openclaw_gateway.schemas.automation import RatingPromptForwardResponse
 from openclaw_gateway.schemas.media import (
     JellyseerrRequestResponse,
     MediaItem,
+    MediaPagination,
     MediaSearchResponse,
     MovieStatistics,
     MovieSummary,
@@ -84,14 +85,25 @@ async def test_jellyfin_search_route_returns_normalized_items(monkeypatch):
                 "overview": "Space horror",
                 "available": True,
                 "request_status": None,
+                "library": None,
+                "runtime_minutes": None,
+                "genres": [],
             }
-        ]
+        ],
+        "pagination": {
+            "mode": "full_response",
+            "start_index": 0,
+            "limit": None,
+            "total": None,
+        },
     }
 
 
 @pytest.mark.asyncio
 async def test_jellyfin_library_route_returns_normalized_items(monkeypatch):
-    async def library(self) -> MediaSearchResponse:
+    async def library(self, start_index: int = 0, limit: int | None = None) -> MediaSearchResponse:
+        assert start_index == 0
+        assert limit is None
         return MediaSearchResponse(
             items=[
                 MediaItem(
@@ -115,6 +127,172 @@ async def test_jellyfin_library_route_returns_normalized_items(monkeypatch):
     assert response.status_code == 200
     assert response.json()["items"][0]["title"] == "Severance"
     assert response.json()["items"][0]["type"] == "series"
+    assert response.json()["pagination"] == {
+        "mode": "full_response",
+        "start_index": 0,
+        "limit": None,
+        "total": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_library_route_accepts_pagination(monkeypatch):
+    async def library(self, start_index: int = 0, limit: int | None = None) -> MediaSearchResponse:
+        assert start_index == 50
+        assert limit == 25
+        return MediaSearchResponse(
+            items=[
+                MediaItem(
+                    id="movie-1",
+                    type="movie",
+                    title="Alien",
+                    year=1979,
+                    overview="Space horror",
+                    available=True,
+                    library="Movies",
+                    runtime_minutes=117,
+                    genres=["Horror", "Sci-Fi"],
+                )
+            ],
+            pagination=MediaPagination(
+                mode="window",
+                start_index=50,
+                limit=25,
+                total=147,
+            ),
+        )
+
+    monkeypatch.setattr("openclaw_gateway.routers.media.JellyfinClient.library", library)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/jellyfin/library?start_index=50&limit=25",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "id": "movie-1",
+                "type": "movie",
+                "title": "Alien",
+                "year": 1979,
+                "overview": "Space horror",
+                "available": True,
+                "request_status": None,
+                "library": "Movies",
+                "runtime_minutes": 117,
+                "genres": ["Horror", "Sci-Fi"],
+            }
+        ],
+        "pagination": {
+            "mode": "window",
+            "start_index": 50,
+            "limit": 25,
+            "total": 147,
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_forwards_movie_prompt(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        assert event.item_id == "jellyfin-movie-1"
+        assert event.title == "Alien"
+        assert event.year == 1979
+        assert event.watched_at == "2026-07-01T07:10:00Z"
+        assert event.user_id == "oli-profile"
+        assert event.dedupe_key == "jellyfin-movie-1:2026-07-01T07:10:00Z"
+        return RatingPromptForwardResponse(
+            ok=True,
+            workflow="jellyfin-rating-prompt",
+            received=True,
+            dedupe_key=event.dedupe_key,
+        )
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.stop",
+                "item_id": "jellyfin-movie-1",
+                "item_type": "movie",
+                "title": "Alien",
+                "year": 1979,
+                "watched_at": "2026-07-01T07:10:00Z",
+                "user_id": "oli-profile",
+                "completed": True,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "forwarded",
+        "dedupe_key": "jellyfin-movie-1:2026-07-01T07:10:00Z",
+        "forwarded": True,
+        "message": "Completed movie event forwarded for rating prompt.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_rejects_non_movies(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        raise AssertionError("non-movie events must not be forwarded")
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.stop",
+                "item_id": "episode-1",
+                "item_type": "episode",
+                "title": "Episode One",
+                "watched_at": "2026-07-01T07:10:00Z",
+                "completed": True,
+            },
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_rejects_partial_playback(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        raise AssertionError("partial playback must not be forwarded")
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.progress",
+                "item_id": "jellyfin-movie-1",
+                "item_type": "movie",
+                "title": "Alien",
+                "watched_at": "2026-07-01T07:10:00Z",
+                "completed": False,
+            },
+        )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
