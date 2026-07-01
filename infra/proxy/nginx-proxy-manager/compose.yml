@@ -17,6 +17,30 @@ services:
     networks:
       - proxy_net
       - internal_net
+  openclaw-tunnel:
+    image: alpine:3.20
+    container_name: openclaw-tunnel
+    restart: unless-stopped
+    command: 
+      - sh
+      - -c
+      - |
+          apk add --no-cache openssh-client
+          cp /ssh-src/openclaw_lab_tunnel /tmp/openclaw_lab_tunnel
+          chmod 600 /tmp/openclaw_lab_tunnel
+          exec ssh -NT \
+            -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3 \
+            -o StrictHostKeyChecking=accept-new \
+            -o BatchMode=yes \
+            -i /tmp/openclaw_lab_tunnel \
+            -L 0.0.0.0:18789:127.0.0.1:18789 \
+            oli@192.168.1.16
+    volumes:
+       - /home/oli/.ssh/openclaw/openclaw_lab_tunnel:/ssh-src/openclaw_lab_tunnel:ro
+    networks:
+      - proxy_net
 
 networks:
   proxy_net:
