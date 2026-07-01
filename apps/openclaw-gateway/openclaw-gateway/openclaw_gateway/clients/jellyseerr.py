@@ -1,6 +1,10 @@
 import httpx
 
-from openclaw_gateway.schemas.media import MediaItem, MediaSearchResponse
+from openclaw_gateway.schemas.media import (
+    JellyseerrRequestResponse,
+    MediaItem,
+    MediaSearchResponse,
+)
 
 
 JELLYSEERR_AVAILABLE_STATUS = 5
@@ -29,6 +33,66 @@ class JellyseerrClient:
         items = [self._normalize_item(item) for item in response.json().get("results", [])]
         return MediaSearchResponse(items=items)
 
+    async def validate_request(
+        self,
+        media_type: str,
+        tmdb_id: int,
+    ) -> JellyseerrRequestResponse:
+        results = await self.search(str(tmdb_id))
+        if not any(item.id == str(tmdb_id) and item.type == media_type for item in results.items):
+            request = httpx.Request("GET", f"{self._base_url}/api/v1/search")
+            response = httpx.Response(404, request=request)
+            raise httpx.HTTPStatusError(
+                "jellyseerr media request target not found",
+                request=request,
+                response=response,
+            )
+
+        return JellyseerrRequestResponse(
+            status="valid",
+            media_type=media_type,
+            tmdb_id=tmdb_id,
+            message="Request target is valid; no request was created.",
+            request_id=None,
+            duplicate=False,
+            dry_run=True,
+        )
+
+    async def create_request(
+        self,
+        media_type: str,
+        tmdb_id: int,
+    ) -> JellyseerrRequestResponse:
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.post(
+                f"{self._base_url}/api/v1/request",
+                headers={"X-Api-Key": self._api_key},
+                json={"mediaType": media_type, "mediaId": tmdb_id},
+            )
+
+        if self._is_duplicate_request_response(response):
+            return JellyseerrRequestResponse(
+                status="duplicate",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                message="Media has already been requested.",
+                request_id=None,
+                duplicate=True,
+                dry_run=False,
+            )
+
+        response.raise_for_status()
+        payload = response.json()
+        return JellyseerrRequestResponse(
+            status="created",
+            media_type=media_type,
+            tmdb_id=tmdb_id,
+            message="Jellyseerr request created.",
+            request_id=payload.get("id"),
+            duplicate=False,
+            dry_run=False,
+        )
+
     def _normalize_item(self, item: dict) -> MediaItem:
         media_info = item.get("mediaInfo") or {}
         requests = media_info.get("requests") or []
@@ -53,3 +117,15 @@ class JellyseerrClient:
             available=media_info.get("status") == JELLYSEERR_AVAILABLE_STATUS,
             request_status=request_status,
         )
+
+    def _is_duplicate_request_response(self, response: httpx.Response) -> bool:
+        if response.status_code not in {409, 412}:
+            return False
+
+        try:
+            message = str(response.json().get("message", ""))
+        except ValueError:
+            message = response.text
+
+        normalized = message.lower()
+        return "already" in normalized and "request" in normalized

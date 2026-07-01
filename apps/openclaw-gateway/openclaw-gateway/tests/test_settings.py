@@ -15,6 +15,8 @@ def valid_settings_kwargs() -> dict[str, str | float]:
         "sonarr_api_key": "sonarr-secret",
         "radarr_url": "http://radarr:7878",
         "radarr_api_key": "radarr-secret",
+        "n8n_webhook_base_url": "http://n8n:5678",
+        "n8n_openclaw_smoke_path": "/webhook/openclaw-smoke",
         "upstream_timeout_seconds": 5.0,
     }
 
@@ -27,6 +29,8 @@ def test_settings_accept_valid_config():
     assert str(settings.jellyseerr_url) == "http://jellyseerr:5055/"
     assert str(settings.sonarr_url) == "http://sonarr:8989/"
     assert str(settings.radarr_url) == "http://radarr:7878/"
+    assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
+    assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
     assert settings.upstream_timeout_seconds == 5.0
 
 
@@ -41,6 +45,22 @@ def test_settings_reject_missing_gateway_token():
 def test_settings_reject_non_ascii_gateway_token():
     kwargs = valid_settings_kwargs()
     kwargs["gateway_auth_token"] = "gateway-secrēt"
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)
+
+
+def test_settings_reject_empty_n8n_smoke_path():
+    kwargs = valid_settings_kwargs()
+    kwargs["n8n_openclaw_smoke_path"] = ""
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)
+
+
+def test_settings_reject_non_webhook_n8n_smoke_path():
+    kwargs = valid_settings_kwargs()
+    kwargs["n8n_openclaw_smoke_path"] = "/api/v1/workflows"
 
     with pytest.raises(ValidationError):
         GatewaySettings(**kwargs)

@@ -47,3 +47,108 @@ async def test_jellyseerr_search_normalizes_results():
     assert result.items[0].overview == "Space horror"
     assert result.items[0].available is True
     assert result.items[0].request_status == "approved"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_jellyseerr_create_request_posts_narrow_payload():
+    route = respx.post("http://jellyseerr:5055/api/v1/request").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": 77,
+                "type": "movie",
+                "media": {"tmdbId": 348},
+            },
+        )
+    )
+    client = JellyseerrClient(
+        base_url="http://jellyseerr:5055",
+        api_key="jellyseerr-secret",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.create_request(media_type="movie", tmdb_id=348)
+
+    assert route.called
+    request = route.calls.last.request
+    assert request.headers["X-Api-Key"] == "jellyseerr-secret"
+    assert request.read() == b'{"mediaType":"movie","mediaId":348}'
+    assert result.status == "created"
+    assert result.request_id == 77
+    assert result.duplicate is False
+    assert result.dry_run is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_jellyseerr_create_request_maps_duplicate_response():
+    respx.post("http://jellyseerr:5055/api/v1/request").mock(
+        return_value=httpx.Response(
+            409,
+            json={"message": "Media has already been requested"},
+        )
+    )
+    client = JellyseerrClient(
+        base_url="http://jellyseerr:5055",
+        api_key="jellyseerr-secret",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.create_request(media_type="tv", tmdb_id=12345)
+
+    assert result.status == "duplicate"
+    assert result.media_type == "tv"
+    assert result.tmdb_id == 12345
+    assert result.request_id is None
+    assert result.duplicate is True
+    assert result.dry_run is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_jellyseerr_validate_request_searches_without_posting():
+    search_route = respx.get("http://jellyseerr:5055/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json={"results": [{"id": 348, "mediaType": "movie", "title": "Alien"}]},
+        )
+    )
+    request_route = respx.post("http://jellyseerr:5055/api/v1/request").mock(
+        return_value=httpx.Response(201, json={"id": 77})
+    )
+    client = JellyseerrClient(
+        base_url="http://jellyseerr:5055",
+        api_key="jellyseerr-secret",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.validate_request(media_type="movie", tmdb_id=348)
+
+    assert search_route.called
+    assert not request_route.called
+    assert search_route.calls.last.request.url.params["query"] == "348"
+    assert result.status == "valid"
+    assert result.duplicate is False
+    assert result.dry_run is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_jellyseerr_validate_request_requires_matching_search_result():
+    respx.get("http://jellyseerr:5055/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json={"results": [{"id": 123, "mediaType": "movie", "title": "Other"}]},
+        )
+    )
+    client = JellyseerrClient(
+        base_url="http://jellyseerr:5055",
+        api_key="jellyseerr-secret",
+        timeout_seconds=5.0,
+    )
+
+    with pytest.raises(httpx.HTTPStatusError) as exc:
+        await client.validate_request(media_type="movie", tmdb_id=348)
+
+    assert exc.value.response.status_code == 404

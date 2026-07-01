@@ -62,4 +62,38 @@ if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
   fi
 fi
 
+if [[ "${CHECK_JELLYSEERR_REQUESTS:-0}" == "1" ]]; then
+  jellyseerr_request_status="$(
+    curl -sS \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -X POST \
+      -H "Authorization: Bearer ${gateway_token}" \
+      -H "Content-Type: application/json" \
+      --data-raw '{"media_type":"movie","tmdb_id":348,"note":"OpenClaw gateway smoke dry-run","dry_run":true}' \
+      "${gateway_url%/}/v1/media/jellyseerr/requests"
+  )"
+
+  if [[ "${jellyseerr_request_status}" != "200" ]]; then
+    echo "Authenticated Jellyseerr request dry-run failed with HTTP ${jellyseerr_request_status}." >&2
+    exit 1
+  fi
+fi
+
+if [[ "${CHECK_N8N_SMOKE:-0}" == "1" ]]; then
+  n8n_status="$(
+    curl -sS \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -X POST \
+      -H "Authorization: Bearer ${gateway_token}" \
+      "${gateway_url%/}/v1/automation/n8n/openclaw-smoke"
+  )"
+
+  if [[ "${n8n_status}" != "200" ]]; then
+    echo "Authenticated n8n smoke check failed with HTTP ${n8n_status}." >&2
+    exit 1
+  fi
+fi
+
 echo "OpenClaw gateway smoke test passed."
