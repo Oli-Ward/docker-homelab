@@ -296,6 +296,106 @@ async def test_jellyfin_watch_completed_route_rejects_partial_playback(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_forwards_movie_prompt(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        assert event.item_id == "jellyfin-movie-1"
+        assert event.title == "Alien"
+        assert event.year == 1979
+        assert event.watched_at == "2026-07-01T07:10:00Z"
+        assert event.user_id == "oli-profile"
+        assert event.dedupe_key == "jellyfin-movie-1:2026-07-01T07:10:00Z"
+        return RatingPromptForwardResponse(
+            ok=True,
+            workflow="jellyfin-rating-prompt",
+            received=True,
+            dedupe_key=event.dedupe_key,
+        )
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.stop",
+                "item_id": "jellyfin-movie-1",
+                "item_type": "movie",
+                "title": "Alien",
+                "year": 1979,
+                "watched_at": "2026-07-01T07:10:00Z",
+                "user_id": "oli-profile",
+                "completed": True,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "forwarded",
+        "dedupe_key": "jellyfin-movie-1:2026-07-01T07:10:00Z",
+        "forwarded": True,
+        "message": "Completed movie event forwarded for rating prompt.",
+    }
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_rejects_non_movies(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        raise AssertionError("non-movie events must not be forwarded")
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.stop",
+                "item_id": "episode-1",
+                "item_type": "episode",
+                "title": "Episode One",
+                "watched_at": "2026-07-01T07:10:00Z",
+                "completed": True,
+            },
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_jellyfin_watch_completed_route_rejects_partial_playback(monkeypatch):
+    async def forward_rating_prompt(self, event):
+        raise AssertionError("partial playback must not be forwarded")
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.media.N8nClient.forward_rating_prompt",
+        forward_rating_prompt,
+    )
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/media/jellyfin/watch-completed",
+            headers={"Authorization": "Bearer gateway-secret"},
+            json={
+                "event": "playback.progress",
+                "item_id": "jellyfin-movie-1",
+                "item_type": "movie",
+                "title": "Alien",
+                "watched_at": "2026-07-01T07:10:00Z",
+                "completed": False,
+            },
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
     async def search(self, query: str) -> MediaSearchResponse:
         assert query == "alien"
