@@ -134,6 +134,8 @@ APPDATA_ROOT=/srv/appdata
 
 Homepage is the deliberate exception. Its selected safe dashboard config is repo-managed under `apps/utilities/homepage` and mounted into the container with `./homepage:/app/config`; real widget secrets stay in the untracked stack `.env`.
 
+Manual encrypted appdata/config backups are documented in [`docs/backup/media-appdata.md`](docs/backup/media-appdata.md). This is a manual-first workflow and does not replace full VM backups.
+
 ---
 
 ## ⚠️ Notes
