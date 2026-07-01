@@ -38,15 +38,12 @@ class JellyseerrClient:
         media_type: str,
         tmdb_id: int,
     ) -> JellyseerrRequestResponse:
-        results = await self.search(str(tmdb_id))
-        if not any(item.id == str(tmdb_id) and item.type == media_type for item in results.items):
-            request = httpx.Request("GET", f"{self._base_url}/api/v1/search")
-            response = httpx.Response(404, request=request)
-            raise httpx.HTTPStatusError(
-                "jellyseerr media request target not found",
-                request=request,
-                response=response,
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.get(
+                f"{self._base_url}{self._detail_path(media_type, tmdb_id)}",
+                headers={"X-Api-Key": self._api_key},
             )
+            response.raise_for_status()
 
         return JellyseerrRequestResponse(
             status="valid",
@@ -129,3 +126,9 @@ class JellyseerrClient:
 
         normalized = message.lower()
         return "already" in normalized and "request" in normalized
+
+    def _detail_path(self, media_type: str, tmdb_id: int) -> str:
+        if media_type == "tv":
+            return f"/api/v1/tv/{tmdb_id}"
+
+        return f"/api/v1/movie/{tmdb_id}"
