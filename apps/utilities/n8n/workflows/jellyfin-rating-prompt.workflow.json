@@ -93,7 +93,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, workflow: 'jellyfin-rating-prompt', received: true, dedupe_key: $json.dedupe_key } }}",
+        "responseBody": "={{ { ok: true, workflow: 'jellyfin-rating-prompt', received: true, dedupe_key: $node[\"Build Rating Prompt Payload\"].json.dedupe_key, prompt_sent: true } }}",
         "options": {
           "responseCode": 200
         }
@@ -102,6 +102,20 @@
       "name": "Return Gateway Ack",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "={{ `/bin/sh /opt/n8n-scripts/send-jellyfin-rating-prompt.sh <<'OPN212_PAYLOAD'\n${JSON.stringify($json)}\nOPN212_PAYLOAD` }}"
+      },
+      "id": "c7d26223-df40-4239-9389-2dbe9ace0402",
+      "name": "Send OpenClaw Rating Prompt",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
       "position": [
         0,
         0
@@ -122,6 +136,17 @@
       ]
     },
     "Build Rating Prompt Payload": {
+      "main": [
+        [
+          {
+            "node": "Send OpenClaw Rating Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send OpenClaw Rating Prompt": {
       "main": [
         [
           {
