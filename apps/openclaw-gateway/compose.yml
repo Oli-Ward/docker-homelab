@@ -18,7 +18,7 @@ services:
       - N8N_WEBHOOK_BASE_URL=${N8N_WEBHOOK_BASE_URL:-http://n8n:5678}
       - N8N_OPENCLAW_SMOKE_PATH=${N8N_OPENCLAW_SMOKE_PATH:-/webhook/openclaw-smoke}
       - N8N_JELLYFIN_RATING_PROMPT_PATH=${N8N_JELLYFIN_RATING_PROMPT_PATH:-/webhook/jellyfin-rating-prompt}
-      - UPSTREAM_TIMEOUT_SECONDS=${UPSTREAM_TIMEOUT_SECONDS:-5}
+      - UPSTREAM_TIMEOUT_SECONDS=15
     networks:
       - media_net
       - utilities_net
