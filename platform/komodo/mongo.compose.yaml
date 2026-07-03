@@ -29,6 +29,8 @@ services:
     image: ghcr.io/moghtech/komodo-core:${COMPOSE_KOMODO_IMAGE_TAG:-2}
     init: true
     restart: unless-stopped
+    mem_limit: 1g
+    memswap_limit: 1g
     depends_on:
       - mongo
     ports:
@@ -59,6 +61,8 @@ services:
     image: ghcr.io/moghtech/komodo-periphery:${COMPOSE_KOMODO_IMAGE_TAG:-2}
     init: true
     restart: unless-stopped
+    mem_limit: 512m
+    memswap_limit: 512m
     depends_on:
       - core
     env_file: ./compose.env

@@ -24,6 +24,8 @@ services:
   paperless-gotenberg:
     image: docker.io/gotenberg/gotenberg:8.34.0
     container_name: paperless-gotenberg
+    mem_limit: 1536m
+    memswap_limit: 1536m
     restart: unless-stopped
     command:
       - gotenberg
@@ -35,6 +37,8 @@ services:
   paperless-tika:
     image: docker.io/apache/tika:3.3.1.0-full
     container_name: paperless-tika
+    mem_limit: 1536m
+    memswap_limit: 1536m
     restart: unless-stopped
     networks:
       - docs_net
