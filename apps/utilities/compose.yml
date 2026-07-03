@@ -105,17 +105,22 @@ services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: n8n
+    mem_limit: 1g
+    memswap_limit: 1g
     restart: unless-stopped
-    ports:
-      - "${N8N_PORT:-5678}:5678"
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
-      - OPENCLAW_SSH_HOST=${OPENCLAW_SSH_HOST}
-      - OPENCLAW_SSH_USER=${OPENCLAW_SSH_USER:-oli}
+      - N8N_HOST=n8n.home.lab
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.home.lab/
+      - N8N_EDITOR_BASE_URL=https://n8n.home.lab/
+      - N8N_SECURE_COOKIE=true
+      - NODES_EXCLUDE=${NODES_EXCLUDE:-[]}
+      - OPENCLAW_SSH_HOST=${OPENCLAW_SSH_HOST:-192.168.1.16}
+      - OPENCLAW_SSH_USER=${OPENCLAW_SSH_USER:-openclaw}
       - OPENCLAW_SSH_PORT=${OPENCLAW_SSH_PORT:-22}
       - OPENCLAW_SSH_KEY_PATH=${OPENCLAW_SSH_KEY_PATH:-/home/node/.n8n/ssh/openclaw_lab_tunnel}
       - OPENCLAW_WORKSPACE=${OPENCLAW_WORKSPACE:-/home/openclaw/.openclaw/workspace}
