@@ -25,6 +25,10 @@ layout:
     style: row
     columns: 4
     icon: mdi-download
+  Automation:
+    style: row
+    columns: 4
+    icon: mdi-robot
   System:
     style: row
     columns: 4

@@ -142,6 +142,14 @@
           missingEpisodes: true
           missingMovies: true
 
+# Automation
+- Automation:
+    - n8n:
+        icon: n8n.png
+        href: https://n8n.home.lab
+        description: Workflow Automation
+        siteMonitor: http://n8n:5678
+
 # System
 - System:
     - Paperless-ngx:

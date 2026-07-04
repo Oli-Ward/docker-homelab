@@ -56,6 +56,7 @@ Services (Sonarr, Radarr, etc.)
 ### Utilities
 
 * Cleanuparr – Cleanup automation
+* n8n – Workflow automation
 * Glances – System metrics
 * Speedtest Tracker – Network monitoring
 * File Browser – File access
@@ -79,6 +80,7 @@ Examples:
 * `torrent.home.lab`
 * `usenet.home.lab`
 * `speedtest.home.lab`
+* `n8n.home.lab`
 
 ---
 
