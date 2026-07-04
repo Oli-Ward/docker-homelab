@@ -1,0 +1,139 @@
+{
+  "id": "linear-openclaw-pickup",
+  "name": "linear-openclaw-pickup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "linear-openclaw-pickup",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "5b1aa2d9-8a6c-45d1-a65d-8f15c7c08df0",
+      "name": "Linear Pickup Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -760,
+        0
+      ],
+      "webhookId": "2e87b4eb-9e02-42a1-b116-02a71f4ef2d7"
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "={{ `/usr/local/bin/node /opt/n8n-scripts/verify-linear-openclaw-pickup.js <<'OPN234_VERIFY'\n${JSON.stringify({ rawBody: typeof $json.body === 'string' ? $json.body : $json.rawBody, headers: $json.headers || {} })}\nOPN234_VERIFY` }}"
+      },
+      "id": "609eaa78-ac21-4bdc-b84a-17d70ce93e51",
+      "name": "Verify Linear Signature",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stdout = $json.stdout || '';\nlet verification;\ntry {\n  verification = JSON.parse(stdout);\n} catch (error) {\n  verification = { status: 'rejected', reason: 'invalid-verifier-output' };\n}\nreturn [{ json: verification }];"
+      },
+      "id": "eed2a0f7-0f72-4d1b-a4c6-c4a45a4fdb40",
+      "name": "Parse Verification Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "={{ $json.status === 'accepted' ? `/bin/sh /opt/n8n-scripts/send-linear-openclaw-pickup.sh <<'OPN234_PAYLOAD'\n${JSON.stringify($json.payload)}\nOPN234_PAYLOAD` : `printf '%s\\n' '${JSON.stringify({ status: $json.status, skipped: true, reason: $json.reason || null })}'` }}"
+      },
+      "id": "6b0ff049-00a9-4735-a3de-e542502a116f",
+      "name": "Send OpenClaw Pickup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: $node[\"Parse Verification Result\"].json.status !== 'rejected', workflow: 'linear-openclaw-pickup', status: $node[\"Parse Verification Result\"].json.status, reason: $node[\"Parse Verification Result\"].json.reason || null, event_id: $node[\"Parse Verification Result\"].json.payload ? $node[\"Parse Verification Result\"].json.payload.event_id : null } }}",
+        "options": {
+          "responseCode": "={{ $node[\"Parse Verification Result\"].json.status === 'rejected' ? 401 : 200 }}"
+        }
+      },
+      "id": "a830dc0f-b121-46a7-8c1c-0703b878c686",
+      "name": "Return Linear Ack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        280,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Linear Pickup Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify Linear Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Linear Signature": {
+      "main": [
+        [
+          {
+            "node": "Parse Verification Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Verification Result": {
+      "main": [
+        [
+          {
+            "node": "Send OpenClaw Pickup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send OpenClaw Pickup": {
+      "main": [
+        [
+          {
+            "node": "Return Linear Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f844648b-7777-4091-8dc3-3085b5473b55",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

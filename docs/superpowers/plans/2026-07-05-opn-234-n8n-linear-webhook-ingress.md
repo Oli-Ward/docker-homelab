@@ -146,11 +146,11 @@ Use Linear state `In Progress` only after the OPN-235 handoff contract exists.
 - Create: `apps/utilities/n8n/scripts/verify-linear-openclaw-pickup.js`
 - Create: `apps/utilities/n8n/scripts/send-linear-openclaw-pickup.sh`
 
-- [ ] **Step 1: Add environment placeholders**
+- [x] **Step 1: Add environment placeholders**
 
 Add only non-secret variable names and safe defaults to `apps/utilities/example.env`. The real `LINEAR_OPENCLAW_WEBHOOK_SECRET` must stay in Komodo or the live n8n credential store, not Git.
 
-- [ ] **Step 2: Add n8n workflow JSON**
+- [x] **Step 2: Add n8n workflow JSON**
 
 Create the workflow export with:
 
@@ -164,7 +164,7 @@ Create the workflow export with:
 - Durable, secret-free accepted/rejected/suppressed logging
 - Execute Command node calling `/opt/n8n-scripts/send-linear-openclaw-pickup.sh`
 
-- [ ] **Step 3: Add verifier script**
+- [x] **Step 3: Add verifier script**
 
 Create `apps/utilities/n8n/scripts/verify-linear-openclaw-pickup.js`. It must compute HMAC-SHA256 over the exact raw request body and compare it to the `Linear-Signature` header before parsing JSON. It should return one secret-free JSON result:
 
@@ -180,7 +180,7 @@ Create `apps/utilities/n8n/scripts/verify-linear-openclaw-pickup.js`. It must co
 { "status": "rejected", "reason": "invalid-signature" }
 ```
 
-- [ ] **Step 4: Add helper script**
+- [x] **Step 4: Add helper script**
 
 Create `apps/utilities/n8n/scripts/send-linear-openclaw-pickup.sh` as a POSIX shell script that reads one JSON event from stdin and calls the exact OPN-235-approved handoff. The script must not echo secrets, payload bodies, SSH keys, bearer tokens, or Linear signature material.
 
@@ -193,7 +193,7 @@ Create `apps/utilities/n8n/scripts/send-linear-openclaw-pickup.sh` as a POSIX sh
 - Check: `apps/utilities/n8n/scripts/verify-linear-openclaw-pickup.js`
 - Check: `apps/utilities/n8n/scripts/send-linear-openclaw-pickup.sh`
 
-- [ ] **Step 1: Validate workflow JSON**
+- [x] **Step 1: Validate workflow JSON**
 
 Run:
 
@@ -203,11 +203,11 @@ jq empty apps/utilities/n8n/workflows/linear-openclaw-pickup.workflow.json
 
 Expected: exits 0 with no output.
 
-- [ ] **Step 2: Validate shell syntax**
+- [x] **Step 2: Validate verifier behavior**
 
 Run verifier fixture tests or direct node invocations for valid signature, invalid signature, malformed JSON, non-issue event, missing gate, and accepted issue event.
 
-- [ ] **Step 3: Validate shell syntax**
+- [x] **Step 3: Validate shell syntax**
 
 Run:
 
@@ -217,7 +217,7 @@ sh -n apps/utilities/n8n/scripts/send-linear-openclaw-pickup.sh
 
 Expected: exits 0 with no output.
 
-- [ ] **Step 4: Validate Compose rendering**
+- [x] **Step 4: Validate Compose rendering**
 
 Run:
 
@@ -227,7 +227,7 @@ docker compose --env-file apps/utilities/example.env -f apps/utilities/compose.y
 
 Expected: exits 0 and renders the utilities stack without deploying or recreating containers.
 
-- [ ] **Step 5: Check diff hygiene**
+- [x] **Step 5: Check diff hygiene**
 
 Run:
 
