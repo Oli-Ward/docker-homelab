@@ -409,6 +409,33 @@ Decisions confirmed:
 - Jellyfin Sink is deferred until after Ryot account/bootstrap/API decisions are made.
 - n8n and OpenClaw runtime integration remains out of scope for this ticket and continues in `OPN-228`.
 
+### Post-Completion Authentik Redirect Fix
+
+Reported by Oli on 2026-07-06 after initial completion:
+
+- Browser reached `https://ryot.home.lab/auth`.
+- Ryot showed a minified React hydration error.
+- Browser blocked a mixed-content request because the Authentik authorize redirect used `http://auth.home.lab/application/o/authorize/...` from an HTTPS Ryot page.
+
+Root cause:
+
+- The embedded Authentik outpost config had `authentik_host='http://auth.home.lab'`.
+- Ryot's Authentik proxy provider was not the source of the bad scheme; `external_host` was already `https://ryot.home.lab`.
+- NPM's `auth.home.lab` proxy route itself served HTTPS correctly, but the outpost generated browser authorization URLs from its own `authentik_host` value.
+
+Live change:
+
+- Updated the embedded Authentik outpost backing `_config.authentik_host` from `http://auth.home.lab` to `https://auth.home.lab` using Authentik's Django shell inside `authentik-server`.
+- No secret values were printed or changed.
+- No Docker Compose lifecycle commands were run.
+- Authentik queued outpost update tasks after the model update.
+
+Verification:
+
+- Before fix: `curl -k -sS -D - -o /dev/null 'https://ryot.home.lab/outpost.goauthentik.io/start?rd=https://ryot.home.lab/manifest.json'` returned `Location: http://auth.home.lab/application/o/authorize/...`.
+- After fix: the same command returned `Location: https://auth.home.lab/application/o/authorize/...`.
+- Readback from Authentik Django shell confirmed `authentik_host` is `https://auth.home.lab`.
+
 ## Rollback/Disable Path
 
 No live state was changed by this 2026-07-06 verification checkpoint, so no rollback is required for the checkpoint itself.
