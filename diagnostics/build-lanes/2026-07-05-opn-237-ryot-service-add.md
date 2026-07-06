@@ -436,6 +436,41 @@ Verification:
 - After fix: the same command returned `Location: https://auth.home.lab/application/o/authorize/...`.
 - Readback from Authentik Django shell confirmed `authentik_host` is `https://auth.home.lab`.
 
+### Post-Completion Ryot OIDC CA Trust Fix
+
+Reported by Oli on 2026-07-06 after the Authentik redirect scheme fix:
+
+- Browser still showed a minified React hydration error on `https://ryot.home.lab/auth`.
+- Browser also showed `GET https://ryot.home.lab/favicon.ico 404`.
+- Ryot still did not present or complete login through Authentik.
+
+Findings:
+
+- The mixed-content authorize redirect was no longer present after the Authentik outpost fix.
+- Ryot's `/auth` HTML rendered only the local username/password form and signup link.
+- The embedded route loader data and a direct backend GraphQL query both reported `oidcEnabled=false`.
+- Ryot's redacted `/backend/config` endpoint confirmed the OIDC client id, client secret, issuer URL, and button label were loaded from environment.
+- From inside the running Ryot container, `https://auth.home.lab/application/o/ryot/.well-known/openid-configuration` failed normal TLS verification but succeeded with `curl -k`.
+- The `favicon.ico` 404 is a benign missing route from the Ryot app and is not the OIDC blocker.
+
+Root cause:
+
+- The Ryot service did not trust the homelab CA used by `auth.home.lab`.
+- Ryot loaded the OIDC config, but the backend could not validate the Authentik issuer over HTTPS, so `coreDetails.oidcEnabled` stayed `false`.
+
+Repo change:
+
+- Mounted `/home/oli/docker/ssl/home-lab-root.crt` into the Ryot service at `/usr/local/share/ca-certificates/home-lab-root.crt`.
+- Set `SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt` for the Rust backend HTTP client path.
+- Set `NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt` for the Node/React Router process path.
+- No live Docker Compose lifecycle commands were run; deploy/recreate remains a Komodo action.
+
+Verification:
+
+- `docker compose --env-file apps/media/example.env -f apps/media/compose.yml config` rendered the Ryot CA mount plus `SSL_CERT_FILE` and `NODE_EXTRA_CA_CERTS`.
+- `git diff --check` passed.
+- The local CA file exists and parses as an X.509 certificate valid from 2026-04-22 to 2036-04-22.
+
 ## Rollback/Disable Path
 
 No live state was changed by this 2026-07-06 verification checkpoint, so no rollback is required for the checkpoint itself.

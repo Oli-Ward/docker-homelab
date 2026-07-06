@@ -60,6 +60,10 @@ services:
       - SERVER_OIDC_CLIENT_SECRET=${RYOT_OIDC_CLIENT_SECRET}
       - SERVER_OIDC_ISSUER_URL=${RYOT_OIDC_ISSUER_URL}
       - FRONTEND_OIDC_BUTTON_LABEL=${RYOT_OIDC_BUTTON_LABEL}
+      - SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt
+      - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt
+    volumes:
+      - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
 
   # Ryot Postgres - Media Tracker Database
