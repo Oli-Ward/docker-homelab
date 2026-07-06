@@ -134,7 +134,14 @@ async function main() {
     return;
   }
 
-  const rawBody = typeof envelope.rawBody === "string" ? envelope.rawBody : "";
+  let rawBody = typeof envelope.rawBody === "string" ? envelope.rawBody : "";
+  if (!rawBody && typeof envelope.rawBodyBase64 === "string" && envelope.rawBodyBase64) {
+    try {
+      rawBody = Buffer.from(envelope.rawBodyBase64, "base64").toString("utf8");
+    } catch {
+      rawBody = "";
+    }
+  }
   if (!rawBody) {
     writeResult({ status: "rejected", reason: "missing-raw-body" });
     return;

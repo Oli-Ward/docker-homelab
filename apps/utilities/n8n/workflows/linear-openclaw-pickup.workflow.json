@@ -24,7 +24,7 @@
     {
       "parameters": {
         "executeOnce": false,
-        "command": "={{ `/usr/local/bin/node /opt/n8n-scripts/verify-linear-openclaw-pickup.js <<'OPN234_VERIFY'\n${JSON.stringify({ rawBody: typeof $json.body === 'string' ? $json.body : $json.rawBody, headers: $json.headers || {} })}\nOPN234_VERIFY` }}"
+        "command": "={{ `/usr/local/bin/node /opt/n8n-scripts/verify-linear-openclaw-pickup.js <<'OPN234_VERIFY'\n${JSON.stringify({ rawBody: typeof $json.body === 'string' ? $json.body : $json.rawBody, rawBodyBase64: ($binary && $binary.data && $binary.data.data) || ($input.item && $input.item.binary && $input.item.binary.data && $input.item.binary.data.data) || ($input.first() && $input.first().binary && $input.first().binary.data && $input.first().binary.data.data) || '', headers: $json.headers || {} })}\nOPN234_VERIFY` }}"
       },
       "id": "609eaa78-ac21-4bdc-b84a-17d70ce93e51",
       "name": "Verify Linear Signature",

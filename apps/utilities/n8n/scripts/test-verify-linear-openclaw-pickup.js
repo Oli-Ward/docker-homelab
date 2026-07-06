@@ -81,6 +81,23 @@ function testAcceptedCreateEvent() {
   assert.deepEqual(result.payload.issue.labels, ["agent:ready", "tag:linear"]);
 }
 
+function testAcceptedCreateEventFromBase64RawBody() {
+  const payload = issuePayload();
+  const rawBody = JSON.stringify(payload);
+  const result = runVerifier({
+    rawBodyBase64: Buffer.from(rawBody, "utf8").toString("base64"),
+    headers: {
+      "linear-signature": sign(rawBody),
+      "linear-delivery": "delivery-base64",
+      "linear-event": "Issue",
+    },
+  });
+
+  assert.equal(result.status, "accepted");
+  assert.equal(result.payload.event_id, "delivery-base64");
+  assert.equal(result.payload.issue.identifier, "OPN-234");
+}
+
 function testAcceptedUpdateEvent() {
   const result = runVerifier(envelopeFor(issuePayload({ action: "update" })));
 
@@ -155,6 +172,7 @@ function testNonOpenclawTeamSuppressed() {
 
 for (const test of [
   testAcceptedCreateEvent,
+  testAcceptedCreateEventFromBase64RawBody,
   testAcceptedUpdateEvent,
   testInvalidSignatureRejected,
   testMalformedJsonRejected,
