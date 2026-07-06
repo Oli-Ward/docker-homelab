@@ -17,7 +17,7 @@ MEDIA_GATEWAY_URL=http://<media-host-ip>:8088
 MEDIA_GATEWAY_TOKEN=<gateway token stored outside Git>
 ```
 
-Do not give OpenClaw Jellyfin, Jellyseerr, Sonarr, or Radarr API keys.
+Do not give OpenClaw Jellyfin, Jellyseerr, Sonarr, Radarr, or Ryot API keys/admin tokens. Ryot admin access belongs in the gateway runtime only. OpenClaw should call the fixed Ryot gateway endpoint with the same gateway bearer token it already uses for Jellyfin, Jellyseerr, Sonarr, and Radarr.
 
 ## Endpoints
 
@@ -30,6 +30,7 @@ POST /v1/media/jellyseerr/requests
 POST /v1/media/jellyfin/watch-completed
 GET /v1/media/sonarr/series
 GET /v1/media/radarr/movies
+GET /v1/media/ryot/probe
 POST /v1/automation/n8n/openclaw-smoke
 ```
 
@@ -248,6 +249,18 @@ Duplicate suppression happens in the OpenClaw/n8n rating-prompt workflow or down
   ]
 }
 ```
+
+`GET /v1/media/ryot/probe` verifies that the gateway can reach Ryot's GraphQL endpoint with the gateway-held Ryot admin token. It sends only a fixed `__typename` query and does not expose raw GraphQL passthrough:
+
+```json
+{
+  "status": "ok",
+  "service": "ryot",
+  "typename": "QueryRoot"
+}
+```
+
+Ryot media-state lookup is not exposed yet. Upstream Ryot v10 has useful GraphQL fields such as `metadataSearch`, `metadataLookup`, `metadataDetails`, `userMetadataList`, and `userMetadataDetails`, but no single external-ID media-state field was verified for this slice. Add a separate fixed endpoint only after the exact lookup sequence and response shape are designed and tested.
 
 These endpoints are fixed routes. The only media write routes are the narrow Jellyseerr request endpoint and the narrow Jellyfin completed-movie event endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
 

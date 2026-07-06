@@ -9,6 +9,7 @@ from openclaw_gateway.clients.jellyfin import JellyfinClient
 from openclaw_gateway.clients.jellyseerr import JellyseerrClient
 from openclaw_gateway.clients.n8n import N8nClient
 from openclaw_gateway.clients.radarr import RadarrClient
+from openclaw_gateway.clients.ryot import RyotClient, RyotGraphQLError
 from openclaw_gateway.clients.sonarr import SonarrClient
 from openclaw_gateway.schemas.media import (
     JellyfinWatchCompletedEvent,
@@ -17,6 +18,7 @@ from openclaw_gateway.schemas.media import (
     JellyseerrRequestResponse,
     MediaSearchResponse,
     MovieSummaryResponse,
+    RyotProbeResponse,
     SeriesSummaryResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
@@ -40,6 +42,11 @@ async def _map_upstream_errors(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"{upstream_name} returned {exc.response.status_code}",
+        ) from exc
+    except RyotGraphQLError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"{upstream_name} graphql error",
         ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
@@ -87,6 +94,13 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
         return RadarrClient(
             base_url=str(settings.radarr_url),
             api_key=settings.radarr_api_key,
+            timeout_seconds=settings.upstream_timeout_seconds,
+        )
+
+    def ryot_client() -> RyotClient:
+        return RyotClient(
+            base_url=str(settings.ryot_url),
+            admin_access_token=settings.ryot_admin_access_token,
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
@@ -151,5 +165,9 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
     @router.get("/radarr/movies")
     async def radarr_movies() -> MovieSummaryResponse:
         return await _map_upstream_errors("radarr", radarr_client().movies)
+
+    @router.get("/ryot/probe")
+    async def ryot_probe() -> RyotProbeResponse:
+        return await _map_upstream_errors("ryot", ryot_client().probe)
 
     return router

@@ -11,6 +11,7 @@ from openclaw_gateway.schemas.media import (
     MovieStatistics,
     MovieSummary,
     MovieSummaryResponse,
+    RyotProbeResponse,
     SeriesStatistics,
     SeriesSummary,
     SeriesSummaryResponse,
@@ -29,6 +30,8 @@ def make_settings() -> GatewaySettings:
         sonarr_api_key="sonarr-secret",
         radarr_url="http://radarr:7878",
         radarr_api_key="radarr-secret",
+        ryot_url="http://ryot:8000",
+        ryot_admin_access_token="ryot-secret",
         n8n_webhook_base_url="http://n8n:5678",
         n8n_openclaw_smoke_path="/webhook/openclaw-smoke",
         n8n_jellyfin_rating_prompt_path="/webhook/jellyfin-rating-prompt",
@@ -601,6 +604,36 @@ async def test_radarr_movies_route_requires_auth():
         response = await client.get("/v1/media/radarr/movies")
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_ryot_probe_route_requires_auth():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/v1/media/ryot/probe")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_ryot_probe_route_returns_normalized_status(monkeypatch):
+    async def probe(self):
+        return RyotProbeResponse(status="ok", service="ryot", typename="QueryRoot")
+
+    monkeypatch.setattr("openclaw_gateway.routers.media.RyotClient.probe", probe)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/ryot/probe",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "service": "ryot",
+        "typename": "QueryRoot",
+    }
 
 
 @pytest.mark.asyncio

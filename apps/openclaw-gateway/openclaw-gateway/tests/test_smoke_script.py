@@ -11,6 +11,7 @@ def write_fake_curl(
     tmp_path: Path,
     sonarr_status: str = "200",
     radarr_status: str = "200",
+    ryot_status: str = "200",
     n8n_status: str = "200",
     jellyseerr_request_status: str = "200",
 ) -> Path:
@@ -50,6 +51,13 @@ case "$url" in
       exit 22
     fi
     printf "{radarr_status}"
+    ;;
+  */v1/media/ryot/probe)
+    if [[ "$has_fail" == "1" && "{ryot_status}" -ge 400 ]]; then
+      echo "curl: (22) The requested URL returned error: {ryot_status}" >&2
+      exit 22
+    fi
+    printf "{ryot_status}"
     ;;
   */v1/media/jellyseerr/requests)
     if [[ "$has_fail" == "1" && "{jellyseerr_request_status}" -ge 400 ]]; then
@@ -100,6 +108,26 @@ def test_smoke_script_reports_sonarr_http_status(tmp_path: Path):
 
     assert result.returncode == 1
     assert "Authenticated Sonarr series check failed with HTTP 404." in result.stderr
+
+
+def test_smoke_script_reports_ryot_probe_http_status(tmp_path: Path):
+    write_fake_curl(tmp_path, ryot_status="404")
+    env = smoke_env(tmp_path)
+    env["CHECK_ARR_ENDPOINTS"] = "0"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "Authenticated Ryot probe failed with HTTP 404." in result.stderr
+    assert "gateway-secret" not in result.stdout
+    assert "gateway-secret" not in result.stderr
 
 
 def test_smoke_script_can_check_jellyseerr_request_dry_run(tmp_path: Path):

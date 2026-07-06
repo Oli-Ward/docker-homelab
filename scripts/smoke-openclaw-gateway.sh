@@ -34,6 +34,19 @@ if [[ "${search_status}" != "200" ]]; then
   exit 1
 fi
 
+ryot_probe_status="$(
+  curl -sS \
+    -o /tmp/openclaw-gateway-ryot-probe.json \
+    -w "%{http_code}" \
+    -H "Authorization: Bearer ${gateway_token}" \
+    "${gateway_url%/}/v1/media/ryot/probe"
+)"
+
+if [[ "${ryot_probe_status}" != "200" ]]; then
+  echo "Authenticated Ryot probe failed with HTTP ${ryot_probe_status}." >&2
+  exit 1
+fi
+
 if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
   sonarr_status="$(
     curl -sS \

@@ -17,6 +17,8 @@ class GatewaySettings(BaseSettings):
     sonarr_api_key: Annotated[str, Field(min_length=1)]
     radarr_url: AnyHttpUrl
     radarr_api_key: Annotated[str, Field(min_length=1)]
+    ryot_url: AnyHttpUrl
+    ryot_admin_access_token: Annotated[str, Field(min_length=1)]
     n8n_webhook_base_url: AnyHttpUrl
     n8n_openclaw_smoke_path: Annotated[
         str,

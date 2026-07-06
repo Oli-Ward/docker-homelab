@@ -15,6 +15,8 @@ services:
       - SONARR_API_KEY=${SONARR_API_KEY:?Set SONARR_API_KEY in Komodo or apps/openclaw-gateway/.env}
       - RADARR_URL=${RADARR_URL:-http://radarr:7878}
       - RADARR_API_KEY=${RADARR_API_KEY:?Set RADARR_API_KEY in Komodo or apps/openclaw-gateway/.env}
+      - RYOT_URL=${RYOT_URL:-http://ryot:8000}
+      - RYOT_ADMIN_ACCESS_TOKEN=${RYOT_ADMIN_ACCESS_TOKEN:?Set RYOT_ADMIN_ACCESS_TOKEN in Komodo or apps/openclaw-gateway/.env}
       - N8N_WEBHOOK_BASE_URL=${N8N_WEBHOOK_BASE_URL:-http://n8n:5678}
       - N8N_OPENCLAW_SMOKE_PATH=${N8N_OPENCLAW_SMOKE_PATH:-/webhook/openclaw-smoke}
       - N8N_JELLYFIN_RATING_PROMPT_PATH=${N8N_JELLYFIN_RATING_PROMPT_PATH:-/webhook/jellyfin-rating-prompt}
