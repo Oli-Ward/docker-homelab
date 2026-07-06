@@ -471,6 +471,23 @@ Verification:
 - `git diff --check` passed.
 - The local CA file exists and parses as an X.509 certificate valid from 2026-04-22 to 2036-04-22.
 
+### Post-Completion Authentik Client ID Fix
+
+Reported by Oli on 2026-07-06 during the browser login flow:
+
+- Authentik rejected Ryot's authorize request with a client identifier error.
+- Ryot generated authorize URLs with `client_id=ryot`.
+- The live Authentik Ryot provider's actual client id was the generated provider client id, not the display name.
+
+Fix:
+
+- Updated the local, untracked `apps/media/.env` value for `RYOT_OIDC_CLIENT_ID` to match Authentik's Ryot provider client id.
+- Updated `apps/media/example.env` to use `your-authentik-client-id` instead of the misleading `ryot` placeholder.
+
+Verification:
+
+- `docker compose --env-file apps/media/.env -f apps/media/compose.yml config` rendered the expected `SERVER_OIDC_CLIENT_ID` for the Ryot service.
+
 ## Rollback/Disable Path
 
 No live state was changed by this 2026-07-06 verification checkpoint, so no rollback is required for the checkpoint itself.
