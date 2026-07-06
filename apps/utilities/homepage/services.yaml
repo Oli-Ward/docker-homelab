@@ -94,12 +94,18 @@
 
     - Jellyseerr:
         icon: jellyseerr.png
-        href: https://request.home.lab
+        href: https://jellyseerr.home.lab
         description: Request Media
         widget:
           type: jellyseerr
           url: http://jellyseerr:5055
           key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
+
+    - Ryot:
+        icon: mdi-movie-open-star
+        href: https://ryot.home.lab
+        description: Media Tracker
+        siteMonitor: http://ryot:8000/health
 
 
 # Download Management

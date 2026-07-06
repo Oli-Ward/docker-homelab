@@ -20,6 +20,7 @@ def test_backup_script_dry_run_lists_inventory_without_writing(tmp_path: Path):
     backup = tmp_path / "backup"
     (appdata / "jellyfin").mkdir(parents=True)
     (appdata / "jellyseerr").mkdir(parents=True)
+    (appdata / "ryot-postgres").mkdir(parents=True)
     backup.mkdir()
 
     result = subprocess.run(
@@ -35,6 +36,7 @@ def test_backup_script_dry_run_lists_inventory_without_writing(tmp_path: Path):
     assert "DRY RUN" in result.stdout
     assert "APPDATA_ROOT/jellyfin" in result.stdout
     assert "APPDATA_ROOT/jellyseerr" in result.stdout
+    assert "APPDATA_ROOT/ryot-postgres" in result.stdout
     assert not list(backup.iterdir())
 
 

@@ -39,6 +39,44 @@ services:
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
     restart: unless-stopped
 
+  # Ryot - Media Tracker
+  ryot:
+    image: ignisda/ryot:v10
+    container_name: ryot
+    depends_on:
+      - ryot-db
+    networks:
+      - media_net
+      - proxy_net
+    environment:
+      - TZ=${TZ}
+      - FRONTEND_URL=${RYOT_FRONTEND_URL}
+      - DATABASE_URL=postgres://${RYOT_POSTGRES_USER}:${RYOT_POSTGRES_PASSWORD}@ryot-db:5432/${RYOT_POSTGRES_DB}
+      - SERVER_ADMIN_ACCESS_TOKEN=${RYOT_SERVER_ADMIN_ACCESS_TOKEN}
+      - MOVIES_AND_SHOWS_TMDB_ACCESS_TOKEN=${RYOT_TMDB_ACCESS_TOKEN}
+      - DISABLE_TELEMETRY=${RYOT_DISABLE_TELEMETRY}
+      - USERS_ALLOW_REGISTRATION=${RYOT_USERS_ALLOW_REGISTRATION}
+      - SERVER_OIDC_CLIENT_ID=${RYOT_OIDC_CLIENT_ID}
+      - SERVER_OIDC_CLIENT_SECRET=${RYOT_OIDC_CLIENT_SECRET}
+      - SERVER_OIDC_ISSUER_URL=${RYOT_OIDC_ISSUER_URL}
+      - FRONTEND_OIDC_BUTTON_LABEL=${RYOT_OIDC_BUTTON_LABEL}
+    restart: unless-stopped
+
+  # Ryot Postgres - Media Tracker Database
+  ryot-db:
+    image: postgres:18-alpine
+    container_name: ryot-db
+    networks:
+      - media_net
+    environment:
+      - TZ=${TZ}
+      - POSTGRES_DB=${RYOT_POSTGRES_DB}
+      - POSTGRES_USER=${RYOT_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${RYOT_POSTGRES_PASSWORD}
+    volumes:
+      - ${APPDATA_ROOT}/ryot-postgres:/var/lib/postgresql
+    restart: unless-stopped
+
 networks:
   media_net:
     external: true

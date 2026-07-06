@@ -24,6 +24,7 @@ Included `${APPDATA_ROOT}` paths:
 - `prowlarr`
 - `qbittorrent`
 - `radarr`
+- `ryot-postgres`
 - `sonarr`
 - `speedtest-tracker`
 
@@ -42,6 +43,7 @@ Excluded in this first pass:
 - Paperless app state and exports; use OPN-155.
 - Authentik state and PostgreSQL; handle as a dedicated high-risk restore lane.
 - Komodo Mongo state; existing Komodo backup wiring remains separate.
+- Bulk media tracker exports; Ryot database state is included, but user-level exports should still be tested after the service is deployed.
 - Bulk media libraries and downloads under `${DATA_ROOT}`.
 
 ## Artifact Format

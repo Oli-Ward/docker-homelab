@@ -78,6 +78,7 @@ add_appdata "nzbget"
 add_appdata "prowlarr"
 add_appdata "qbittorrent"
 add_appdata "radarr"
+add_appdata "ryot-postgres"
 add_appdata "sonarr"
 add_appdata "speedtest-tracker"
 

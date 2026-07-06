@@ -43,6 +43,7 @@ Services (Sonarr, Radarr, etc.)
 
 * Jellyfin – Media server
 * Jellyseerr – Requests
+* Ryot – Media tracker
 * qBittorrent – Torrents
 * NZBGet – Usenet
 
@@ -75,7 +76,8 @@ Examples:
 
 * `sonarr.home.lab`
 * `radarr.home.lab`
-* `request.home.lab`
+* `jellyseerr.home.lab`
+* `ryot.home.lab`
 * `cleanup.home.lab`
 * `torrent.home.lab`
 * `usenet.home.lab`
