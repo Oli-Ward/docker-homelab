@@ -65,6 +65,48 @@ services:
       - media_net
       - proxy_net
 
+  # Bazarr Sync - one-off subtitle sync helper, trigger manually via Komodo
+  bazarr-sync:
+    image: ghcr.io/ajmandourah/bazarr-sync:latest
+    container_name: bazarr-sync
+    profiles:
+      - manual
+    environment:
+      - BAZARR_SYNC_URL=${BAZARR_SYNC_URL}
+      - BAZARR_SYNC_API_TOKEN=${BAZARR_SYNC_API_TOKEN}
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        printf '%s\n' \
+          "bazarr_url: $${BAZARR_SYNC_URL}" \
+          "bazarr_token: $${BAZARR_SYNC_API_TOKEN}" \
+          > /tmp/bazarr-sync.yaml
+        status=0
+        bazarr-sync --config /tmp/bazarr-sync.yaml sync movies || status=$$?
+        bazarr-sync --config /tmp/bazarr-sync.yaml sync shows || status=$$?
+        exit $$status
+    restart: "no"
+    depends_on:
+      - bazarr
+    networks:
+      - media_net
+
+  # Maintainerr - Watched media cleanup
+  maintainerr:
+    image: ghcr.io/maintainerr/maintainerr:latest
+    container_name: maintainerr
+    user: "${PUID}:${PGID}"
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - ${APPDATA_ROOT}/maintainerr:/opt/data
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
   # Autoscan - Library Scanner
   autoscan:
     image: ghcr.io/niniyas/autoscan:latest

@@ -148,6 +148,17 @@
           missingEpisodes: true
           missingMovies: true
 
+    - Bazarr Sync Job:
+        icon: mdi-sync
+        href: https://komodo.home.lab
+        description: Trigger subtitle resync in Komodo
+
+    - Maintainerr:
+        icon: mdi-delete-clock
+        href: https://maintainerr.home.lab
+        description: Watched media cleanup
+        siteMonitor: http://maintainerr:6246/api/health/ready
+
 # Automation
 - Automation:
     - n8n:

@@ -53,6 +53,7 @@ Services (Sonarr, Radarr, etc.)
 * Radarr – Movies
 * Prowlarr – Indexers
 * Bazarr – Subtitles
+* Maintainerr – Watched media cleanup
 
 ### Utilities
 
@@ -83,6 +84,7 @@ Examples:
 * `usenet.home.lab`
 * `speedtest.home.lab`
 * `n8n.home.lab`
+* `maintainerr.home.lab`
 
 ---
 
@@ -145,6 +147,7 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 ## ⚠️ Notes
 
 * Do **not** proxy apps like Sonarr directly — always via Authentik
+* Maintainerr must be exposed through Nginx Proxy Manager and protected by Authentik proxy auth before browser use
 * Use internal URLs for widgets to avoid SSL/auth issues
 * Glances runs in `host` mode → accessed via host IP
 
