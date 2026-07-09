@@ -36,6 +36,31 @@ services:
       - HOMEPAGE_VAR_PAPERLESS_PASSWORD=${HOMEPAGE_VAR_PAPERLESS_PASSWORD}
     restart: unless-stopped
 
+  # Backrest - Restic backup management
+  backrest:
+    image: ghcr.io/garethgeorge/backrest:latest
+    container_name: backrest
+    hostname: backrest
+    environment:
+      - TZ=${TZ}
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+      - XDG_CACHE_HOME=/cache
+      - TMPDIR=/tmp
+    volumes:
+      - ${APPDATA_ROOT}/backrest/data:/data
+      - ${APPDATA_ROOT}/backrest/config:/config
+      - ${APPDATA_ROOT}/backrest/cache:/cache
+      - ${APPDATA_ROOT}/backrest/tmp:/tmp
+      - ${APPDATA_ROOT}/backrest/rclone:/root/.config/rclone
+      - ${BACKREST_SOURCE_APPDATA_HOST_PATH:-/srv/appdata}:/userdata/appdata:ro
+      - /home/oli/docker:/userdata/docker-repo:ro
+      - ${BACKREST_RESTIC_REPO_HOST_PATH:-/mnt/backup/restic}:/repos
+    networks:
+      - utilities_net
+      - proxy_net
+    restart: unless-stopped
+
   # Get system data with glances
   glances:
     image: nicolargo/glances:latest
