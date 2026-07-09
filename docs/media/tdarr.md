@@ -48,6 +48,8 @@ Tdarr is installed for health-check/transcode evaluation only. It must not proce
 - Tdarr container not currently deployed (`docker logs tdarr` / `docker inspect tdarr` return "no such container/object").
 - NPM/AuthentiK/AdGuard external UI configuration not yet applied (manual deployment step pending).
 - First Test Result not yet recorded (depends on deployment and manual safe test run).
+- Additional local check:
+  - `ls -ld /srv/appdata/tdarr` returned `Permission denied` in this environment.
 
 ## Task 3 Deployment Checklist (remaining)
 
