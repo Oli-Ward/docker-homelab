@@ -57,7 +57,7 @@ Services (Sonarr, Radarr, etc.)
 * Maintainerr – Watched media cleanup
 * Seekarr – Repeat-search automation helper
 * Mediastarr – Missing-content/quality-upgrade helper
-* Recyclarr – Sonarr/Radarr quality profile and format sync
+* Recyclarr – Sonarr/Radarr quality profile and format sync ([runbook](docs/automation/recyclarr.md))
 
 ### Utilities
 
