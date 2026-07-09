@@ -107,6 +107,26 @@ services:
       - media_net
       - proxy_net
 
+  # Seekarr - missing media search automation helper
+  seekarr:
+    image: ghcr.io/tumeden/seekarr:latest
+    container_name: seekarr
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - SONARR_URL=${SEEKARR_SONARR_URL}
+      - RADARR_URL=${SEEKARR_RADARR_URL}
+      - SONARR_API_KEY=${SEEKARR_SONARR_API_KEY}
+      - RADARR_API_KEY=${SEEKARR_RADARR_API_KEY}
+      - DRY_RUN=${SEEKARR_DRY_RUN}
+      - SCHEDULE=${SEEKARR_SCHEDULE}
+    volumes:
+      - ${APPDATA_ROOT}/seekarr:/config
+    restart: unless-stopped
+    networks:
+      - media_net
+
   # Autoscan - Library Scanner
   autoscan:
     image: ghcr.io/niniyas/autoscan:latest
@@ -123,6 +143,41 @@ services:
     restart: unless-stopped
     networks:
       - media_net    
+
+  # Mediastarr - Missing content and upgrade search helper
+  mediastarr:
+    image: kroeberd/mediastarr:latest
+    container_name: mediastarr
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - SONARR_URL=${MEDIASTARR_SONARR_URL}
+      - RADARR_URL=${MEDIASTARR_RADARR_URL}
+      - SONARR_API_KEY=${MEDIASTARR_SONARR_API_KEY}
+      - RADARR_API_KEY=${MEDIASTARR_RADARR_API_KEY}
+      - DISCORD_WEBHOOK_URL=${MEDIASTARR_DISCORD_WEBHOOK_URL}
+    volumes:
+      - ${APPDATA_ROOT}/mediastarr:/data
+    restart: unless-stopped
+    networks:
+      - media_net
+      - proxy_net
+
+  # Recyclarr - Sonarr/Radarr quality profile sync
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:8
+    container_name: recyclarr
+    user: "${PUID}:${PGID}"
+    environment:
+      - TZ=${TZ}
+      - SONARR_API_KEY=${RECYCLARR_SONARR_API_KEY}
+      - RADARR_API_KEY=${RECYCLARR_RADARR_API_KEY}
+    volumes:
+      - ${APPDATA_ROOT}/recyclarr:/config
+    restart: unless-stopped
+    networks:
+      - media_net
 
   # Cleanuparr - Cleanup Tool
   cleanuparr:
