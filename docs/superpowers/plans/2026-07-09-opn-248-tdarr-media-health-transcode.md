@@ -44,7 +44,7 @@
 - Consumes: existing `media_net`, `proxy_net`, `${APPDATA_ROOT}`, `${DATA_ROOT}`, `${TZ}`, `${PUID}`, `${PGID}`.
 - Produces: `tdarr` server with internal node, web UI port `8265`, server port `8266`, test media mount, and transcode cache mount.
 
-- [ ] **Step 1: Add env placeholders**
+- [x] **Step 1: Add env placeholders**
 
 Append to `apps/media/example.env`:
 
@@ -59,7 +59,7 @@ TDARR_INTERNAL_NODE=true
 TDARR_NODE_NAME=media-internal-node
 ```
 
-- [ ] **Step 2: Add Compose service**
+- [x] **Step 2: Add Compose service**
 
 Insert in `apps/media/compose.yml` before `networks:`:
 
@@ -95,7 +95,7 @@ Insert in `apps/media/compose.yml` before `networks:`:
     restart: unless-stopped
 ```
 
-- [ ] **Step 3: Do not add GPU devices in this task**
+- [x] **Step 3: Do not add GPU devices in this task**
 
 Do not add this block unless a separate hardware check confirms it is safe:
 
@@ -104,7 +104,7 @@ Do not add this block unless a separate hardware check confirms it is safe:
       - /dev/dri:/dev/dri
 ```
 
-- [ ] **Step 4: Validate Compose without deploying**
+- [x] **Step 4: Validate Compose without deploying**
 
 Run from `apps/media` with safe placeholders:
 
@@ -114,7 +114,7 @@ PUID=1000 PGID=1000 TZ=Pacific/Auckland DATA_ROOT=/data APPDATA_ROOT=/srv/appdat
 
 Expected: PASS, rendered config mounts `/data/tdarr-test-library` rather than full `/data/media`.
 
-- [ ] **Step 5: Commit service config**
+- [x] **Step 5: Commit service config**
 
 ```bash
 git add apps/media/compose.yml apps/media/example.env
@@ -132,7 +132,7 @@ git commit -m "OPN-248: add Tdarr safe test service"
 - Consumes: Tdarr service from Task 1.
 - Produces: documented UI route and safe first-run procedure.
 
-- [ ] **Step 1: Add Homepage entry**
+- [x] **Step 1: Add Homepage entry**
 
 Add under `Media & Downloads` in `apps/utilities/homepage/services.yaml`:
 
@@ -144,11 +144,11 @@ Add under `Media & Downloads` in `apps/utilities/homepage/services.yaml`:
         siteMonitor: http://tdarr:8265
 ```
 
-- [ ] **Step 2: Update README service catalog**
+- [x] **Step 2: Update README service catalog**
 
 Add `Tdarr - Media health checks and transcoding evaluation` under Media in `README.md`.
 
-- [ ] **Step 3: Add README safety note**
+- [x] **Step 3: Add README safety note**
 
 Add this bullet under `README.md` Notes:
 
@@ -156,7 +156,7 @@ Add this bullet under `README.md` Notes:
 * Tdarr must start with the dedicated test library and no full-library bulk transcode until resource usage and output safety are proven.
 ```
 
-- [ ] **Step 4: Create Tdarr documentation**
+- [x] **Step 4: Create Tdarr documentation**
 
 Create `docs/media/tdarr.md`:
 
@@ -200,7 +200,7 @@ Tdarr is installed for health-check/transcode evaluation only. It must not proce
 - Reason: pending resource and playback evidence.
 ```
 
-- [ ] **Step 5: Commit docs/dashboard changes**
+- [x] **Step 5: Commit docs/dashboard changes**
 
 ```bash
 git add apps/utilities/homepage/services.yaml README.md docs/media/tdarr.md
