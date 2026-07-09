@@ -148,6 +148,12 @@
         description: Media search automation helper
         siteMonitor: http://mediastarr:7979
 
+    - Seekarr:
+        icon: mdi-magnify-scan
+        href: https://seekarr.home.lab
+        description: Missing media search automation
+        siteMonitor: http://seekarr:8788
+
     - Cleanuparr:
         icon: mdi-broom
         href: https://cleanup.home.lab

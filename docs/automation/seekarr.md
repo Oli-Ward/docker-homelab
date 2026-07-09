@@ -48,7 +48,7 @@ Decision:
 
 ## Initial Runtime Policy
 
-- Keep internal-only on `media_net` for first evaluation.
+- Expose the UI through Nginx Proxy Manager and Authentik only; do not publish container ports directly.
 - Configure Radarr/Sonarr from the web UI using internal URLs: `http://radarr:7878` and `http://sonarr:8989`.
 - Do not add Arr API keys to Compose env; Seekarr stores them encrypted in its SQLite data under `${APPDATA_ROOT}/seekarr`.
 - Because no upstream dry-run mode is documented, avoid enabling scheduled repeat searches until one manual/test search is reviewed.
@@ -62,7 +62,30 @@ Decision:
 - UI exists: yes
 - UI port: `8788`
 - Native auth exists: yes
-- Exposure approved by user: no (not approved for external exposure in this pass)
+- Exposure approved by user: yes
+
+## External UI Configuration
+
+Nginx Proxy Manager:
+
+- Domain: `seekarr.home.lab`
+- Scheme: `http`
+- Forward hostname: `seekarr`
+- Forward port: `8788`
+- SSL: use the existing `home.lab` certificate policy
+- Websockets: enable if the UI requires it during runtime verification
+
+Authentik:
+
+- Application name: `Seekarr`
+- Protect the NPM route with the existing Authentik proxy/outpost pattern used for media management apps.
+- Keep Seekarr native web UI authentication enabled unless it conflicts during runtime verification.
+
+Homepage:
+
+- Entry added under Download Management.
+- URL: `https://seekarr.home.lab`
+- Monitor target: `http://seekarr:8788`
 
 ## Seekarr vs Mediastarr Decision
 
