@@ -17,7 +17,10 @@
 - Install status: **approved for internal-first evaluation**
 - Initial exposure: **internal only** on `media_net`
 - Initial automation: **dry-run/manual validation only**
-- Replacement/companion decision vs Seekarr: pending OPN-247 comparison
+- Replacement/companion decision vs Seekarr: keep Mediastarr installed as a
+  companion evaluation service for now; do not replace Seekarr or enable both
+  for scheduled writes until their overlap has been reviewed after first-run
+  setup.
 
 ## Initial Runtime Policy
 
@@ -26,6 +29,21 @@
 - Do not enable delete, unmonitor, or quality-profile mutation behavior.
 - Recyclarr remains owner of TRaSH/profile/custom-format sync.
 - Maintainerr remains owner of watched-media cleanup.
+
+## Mediastarr vs Seekarr Decision
+
+- Decision: keep Mediastarr installed for a bounded internal evaluation.
+- Reason: Mediastarr has a verified upstream, a web setup wizard, optional
+  dashboard password, and documented Sonarr/Radarr missing-content and upgrade
+  search support. It overlaps with Seekarr, so neither tool should be treated
+  as the permanent automation owner until both have been configured and observed.
+- Current owner of scheduled missing/upgrade searches: none.
+- Services to keep installed: keep Mediastarr and Seekarr internal-first, with
+  only one tool enabled for any scheduled Arr write/search behavior after manual
+  review.
+- Revisit trigger: after Mediastarr first-run setup and one manual test cycle,
+  compare behavior, API key storage, scheduling controls, and logs against
+  Seekarr before enabling scheduled automation.
 
 ## UI Exposure Decision
 
