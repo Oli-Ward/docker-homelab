@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.jellyfin import JellyfinClient
-from openclaw_gateway.clients.jellyseerr import JellyseerrClient
+from openclaw_gateway.clients.seerr import SeerrClient
 from openclaw_gateway.clients.n8n import N8nClient
 from openclaw_gateway.clients.radarr import RadarrClient
 from openclaw_gateway.clients.ryot import RyotClient, RyotGraphQLError
@@ -14,8 +14,8 @@ from openclaw_gateway.clients.sonarr import SonarrClient
 from openclaw_gateway.schemas.media import (
     JellyfinWatchCompletedEvent,
     JellyfinWatchCompletedResponse,
-    JellyseerrRequestCreate,
-    JellyseerrRequestResponse,
+    SeerrRequestCreate,
+    SeerrRequestResponse,
     MediaSearchResponse,
     MovieSummaryResponse,
     RyotProbeResponse,
@@ -68,10 +68,10 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
-    def jellyseerr_client() -> JellyseerrClient:
-        return JellyseerrClient(
-            base_url=str(settings.jellyseerr_url),
-            api_key=settings.jellyseerr_api_key,
+    def seerr_client() -> SeerrClient:
+        return SeerrClient(
+            base_url=str(settings.seerr_url),
+            api_key=settings.seerr_api_key,
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
@@ -133,26 +133,26 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
             message="Completed movie event forwarded for rating prompt.",
         )
 
-    @router.get("/jellyseerr/search")
-    async def jellyseerr_search(q: str) -> MediaSearchResponse:
-        return await _map_upstream_errors("jellyseerr", lambda: jellyseerr_client().search(q))
+    @router.get("/seerr/search")
+    async def seerr_search(q: str) -> MediaSearchResponse:
+        return await _map_upstream_errors("seerr", lambda: seerr_client().search(q))
 
-    @router.post("/jellyseerr/requests")
-    async def jellyseerr_request(
-        request: JellyseerrRequestCreate,
-    ) -> JellyseerrRequestResponse:
+    @router.post("/seerr/requests")
+    async def seerr_request(
+        request: SeerrRequestCreate,
+    ) -> SeerrRequestResponse:
         if request.dry_run:
             return await _map_upstream_errors(
-                "jellyseerr",
-                lambda: jellyseerr_client().validate_request(
+                "seerr",
+                lambda: seerr_client().validate_request(
                     media_type=request.media_type,
                     tmdb_id=request.tmdb_id,
                 ),
             )
 
         return await _map_upstream_errors(
-            "jellyseerr",
-            lambda: jellyseerr_client().create_request(
+            "seerr",
+            lambda: seerr_client().create_request(
                 media_type=request.media_type,
                 tmdb_id=request.tmdb_id,
             ),

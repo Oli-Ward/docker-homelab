@@ -93,13 +93,13 @@
           password: "{{HOMEPAGE_VAR_NZBGET_PASSWORD}}"
 
     - Seerr:
-        icon: jellyseerr.png
+        icon: seerr.png
         href: https://seerr.home.lab
         description: Request Media
         widget:
-          type: jellyseerr
+          type: seerr
           url: http://seerr:5055
-          key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
+          key: "{{HOMEPAGE_VAR_SEERR_API_KEY}}"
 
 
 # Download Management

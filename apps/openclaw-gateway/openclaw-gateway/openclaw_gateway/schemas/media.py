@@ -28,14 +28,14 @@ class MediaSearchResponse(BaseModel):
     pagination: MediaPagination = Field(default_factory=MediaPagination)
 
 
-class JellyseerrRequestCreate(BaseModel):
+class SeerrRequestCreate(BaseModel):
     media_type: Literal["movie", "tv"]
     tmdb_id: Annotated[int, Field(gt=0)]
     note: str | None = None
     dry_run: bool = True
 
 
-class JellyseerrRequestResponse(BaseModel):
+class SeerrRequestResponse(BaseModel):
     status: Literal["created", "duplicate", "valid"]
     media_type: Literal["movie", "tv"]
     tmdb_id: int

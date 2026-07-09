@@ -75,8 +75,8 @@ if [[ "${CHECK_ARR_ENDPOINTS:-0}" == "1" ]]; then
   fi
 fi
 
-if [[ "${CHECK_JELLYSEERR_REQUESTS:-0}" == "1" ]]; then
-  jellyseerr_request_status="$(
+if [[ "${CHECK_SEERR_REQUESTS:-0}" == "1" ]]; then
+  seerr_request_status="$(
     curl -sS \
       -o /dev/null \
       -w "%{http_code}" \
@@ -84,11 +84,11 @@ if [[ "${CHECK_JELLYSEERR_REQUESTS:-0}" == "1" ]]; then
       -H "Authorization: Bearer ${gateway_token}" \
       -H "Content-Type: application/json" \
       --data-raw '{"media_type":"movie","tmdb_id":348,"note":"OpenClaw gateway smoke dry-run","dry_run":true}' \
-      "${gateway_url%/}/v1/media/jellyseerr/requests"
+      "${gateway_url%/}/v1/media/seerr/requests"
   )"
 
-  if [[ "${jellyseerr_request_status}" != "200" ]]; then
-    echo "Authenticated Jellyseerr request dry-run failed with HTTP ${jellyseerr_request_status}." >&2
+  if [[ "${seerr_request_status}" != "200" ]]; then
+    echo "Authenticated Seerr request dry-run failed with HTTP ${seerr_request_status}." >&2
     exit 1
   fi
 fi

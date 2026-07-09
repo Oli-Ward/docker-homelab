@@ -6,9 +6,9 @@ Dockerized FastAPI gateway for selected OpenClaw homelab capabilities.
 
 OpenClaw calls this gateway over the media host LAN IP. The gateway calls upstream services over Docker networks and keeps upstream API keys on the media host.
 
-For OPN-153, the gateway exposed only read-only Jellyfin and Jellyseerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Jellyseerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers. OPN-210 refines the Jellyfin library endpoint into a normalized inventory contract with safe metadata and pagination controls. OPN-211 adds one narrow Jellyseerr write endpoint for creating media requests after confirmation. OPN-212 adds one narrow Jellyfin watch-completion intake endpoint that forwards completed movie events to the configured OpenClaw/n8n rating-prompt workflow.
+For OPN-153, the gateway exposed only read-only Jellyfin and Seerr media endpoints. OPN-156 adds read-only Sonarr and Radarr manager-library/status summaries for OpenClaw decisions that Jellyfin/Seerr do not reliably provide, such as monitored state, missing/downloaded counts, filesystem path presence, and quality profile identifiers. OPN-210 refines the Jellyfin library endpoint into a normalized inventory contract with safe metadata and pagination controls. OPN-211 adds one narrow Seerr write endpoint for creating media requests after confirmation. OPN-212 adds one narrow Jellyfin watch-completion intake endpoint that forwards completed movie events to the configured OpenClaw/n8n rating-prompt workflow.
 
-The gateway does not expose qBittorrent, NZBGet, Prowlarr, Docker logs, Paperless, raw n8n admin/API access, raw passthrough routes, the Docker socket, host networking, or media filesystem mounts. It also does not expose raw `/api/sonarr/*`, `/api/radarr/*`, `/api/jellyseerr/*`, or arbitrary n8n webhook paths.
+The gateway does not expose qBittorrent, NZBGet, Prowlarr, Docker logs, Paperless, raw n8n admin/API access, raw passthrough routes, the Docker socket, host networking, or media filesystem mounts. It also does not expose raw `/api/sonarr/*`, `/api/radarr/*`, `/api/seerr/*`, or arbitrary n8n webhook paths.
 
 OpenClaw should receive only:
 
@@ -17,7 +17,7 @@ MEDIA_GATEWAY_URL=http://<media-host-ip>:8088
 MEDIA_GATEWAY_TOKEN=<gateway token stored outside Git>
 ```
 
-Do not give OpenClaw Jellyfin, Jellyseerr, Sonarr, Radarr, or Ryot API keys/admin tokens. Ryot admin access belongs in the gateway runtime only. OpenClaw should call the fixed Ryot gateway endpoint with the same gateway bearer token it already uses for Jellyfin, Jellyseerr, Sonarr, and Radarr.
+Do not give OpenClaw Jellyfin, Seerr, Sonarr, Radarr, or Ryot API keys/admin tokens. Ryot admin access belongs in the gateway runtime only. OpenClaw should call the fixed Ryot gateway endpoint with the same gateway bearer token it already uses for Jellyfin, Seerr, Sonarr, and Radarr.
 
 ## Endpoints
 
@@ -25,8 +25,8 @@ Do not give OpenClaw Jellyfin, Jellyseerr, Sonarr, Radarr, or Ryot API keys/admi
 GET /health
 GET /v1/media/jellyfin/library?start_index=0&limit=50
 GET /v1/media/jellyfin/search?q=...
-GET /v1/media/jellyseerr/search?q=...
-POST /v1/media/jellyseerr/requests
+GET /v1/media/seerr/search?q=...
+POST /v1/media/seerr/requests
 POST /v1/media/jellyfin/watch-completed
 GET /v1/media/sonarr/series
 GET /v1/media/radarr/movies
@@ -86,7 +86,7 @@ Use `start_index` and `limit` to page through large libraries. `limit` is option
 
 The Jellyfin inventory endpoint is not a raw passthrough. It returns only normalized presentation metadata and does not expose Jellyfin API keys, raw media filesystem paths, Docker access, arbitrary Jellyfin routes, or user watch history.
 
-`POST /v1/media/jellyseerr/requests` accepts only this narrow request shape:
+`POST /v1/media/seerr/requests` accepts only this narrow request shape:
 
 ```json
 {
@@ -97,9 +97,9 @@ The Jellyfin inventory endpoint is not a raw passthrough. It returns only normal
 }
 ```
 
-Use `media_type` as `movie` or `tv`. `tmdb_id` is the TMDB ID from Jellyseerr/search context. `note` is accepted for OpenClaw workflow context but is not forwarded to Jellyseerr because the upstream request API only needs media type and media ID.
+Use `media_type` as `movie` or `tv`. `tmdb_id` is the TMDB ID from Seerr/search context. `note` is accepted for OpenClaw workflow context but is not forwarded to Seerr because the upstream request API only needs media type and media ID.
 
-Dry-run mode is the default and validates that the gateway can reach Jellyseerr without creating a request:
+Dry-run mode is the default and validates that the gateway can reach Seerr without creating a request:
 
 ```json
 {
@@ -120,14 +120,14 @@ Real request creation requires `dry_run: false`:
   "status": "created",
   "media_type": "movie",
   "tmdb_id": 348,
-  "message": "Jellyseerr request created.",
+  "message": "Seerr request created.",
   "request_id": 77,
   "duplicate": false,
   "dry_run": false
 }
 ```
 
-Duplicate or already-requested upstream responses return a clean gateway result instead of raw Jellyseerr error details:
+Duplicate or already-requested upstream responses return a clean gateway result instead of raw Seerr error details:
 
 ```json
 {
@@ -141,7 +141,7 @@ Duplicate or already-requested upstream responses return a clean gateway result 
 }
 ```
 
-OpenClaw policy: run with `dry_run: true` first. Before sending `dry_run: false`, OpenClaw must get explicit Oli confirmation for the exact title/media type/TMDB ID. The gateway does not approve or decline Jellyseerr requests; upstream auto-approval behavior depends only on the Jellyseerr API user's permissions.
+OpenClaw policy: run with `dry_run: true` first. Before sending `dry_run: false`, OpenClaw must get explicit Oli confirmation for the exact title/media type/TMDB ID. The gateway does not approve or decline Seerr requests; upstream auto-approval behavior depends only on the Seerr API user's permissions.
 
 `POST /v1/media/jellyfin/watch-completed` accepts only completed movie events. It rejects TV episodes, shows, and partial playback events before forwarding anything:
 
@@ -262,7 +262,7 @@ Duplicate suppression happens in the OpenClaw/n8n rating-prompt workflow or down
 
 Ryot media-state lookup is not exposed yet. Upstream Ryot v10 has useful GraphQL fields such as `metadataSearch`, `metadataLookup`, `metadataDetails`, `userMetadataList`, and `userMetadataDetails`, but no single external-ID media-state field was verified for this slice. Add a separate fixed endpoint only after the exact lookup sequence and response shape are designed and tested.
 
-These endpoints are fixed routes. The only media write routes are the narrow Jellyseerr request endpoint and the narrow Jellyfin completed-movie event endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
+These endpoints are fixed routes. The only media write routes are the narrow Seerr request endpoint and the narrow Jellyfin completed-movie event endpoint above. Additional write actions, raw upstream passthrough, arbitrary path selection, and query-shaped upstream proxies require a later reviewed ticket.
 
 `POST /v1/automation/n8n/openclaw-smoke` is a no-op automation smoke route for OPN-59. It forwards only this fixed payload to the configured n8n webhook:
 
@@ -288,8 +288,8 @@ GATEWAY_PORT=8088
 GATEWAY_AUTH_TOKEN=change-me
 JELLYFIN_URL=http://jellyfin:8096
 JELLYFIN_API_KEY=change-me
-JELLYSEERR_URL=http://jellyseerr:5055
-JELLYSEERR_API_KEY=change-me
+SEERR_URL=http://seerr:5055
+SEERR_API_KEY=change-me
 SONARR_URL=http://sonarr:8989
 SONARR_API_KEY=change-me
 RADARR_URL=http://radarr:7878
@@ -302,7 +302,7 @@ UPSTREAM_TIMEOUT_SECONDS=15
 
 `GATEWAY_AUTH_TOKEN` is the server-side variable consumed by this container. OpenClaw can store the same secret as `MEDIA_GATEWAY_TOKEN` on the client side, but Komodo must still provide `GATEWAY_AUTH_TOKEN` to the gateway stack.
 
-Do not commit `.env` or real API keys. Jellyfin, Jellyseerr, Sonarr, and Radarr API keys and any n8n webhook secrets must stay on the media host in Komodo or the local deployment environment.
+Do not commit `.env` or real API keys. Jellyfin, Seerr, Sonarr, and Radarr API keys and any n8n webhook secrets must stay on the media host in Komodo or the local deployment environment.
 
 ## n8n Smoke Workflow
 
@@ -401,13 +401,13 @@ To include the Sonarr/Radarr endpoints in the smoke test after those upstreams a
 CHECK_ARR_ENDPOINTS=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
 ```
 
-To include a harmless Jellyseerr request dry-run probe:
+To include a harmless Seerr request dry-run probe:
 
 ```bash
-CHECK_JELLYSEERR_REQUESTS=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
+CHECK_SEERR_REQUESTS=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
 ```
 
-The Jellyseerr smoke probe posts a fixed `dry_run: true` payload and does not create a real request.
+The Seerr smoke probe posts a fixed `dry_run: true` payload and does not create a real request.
 
 To include the n8n smoke route after the media-host workflow exists:
 

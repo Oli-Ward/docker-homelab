@@ -1,13 +1,13 @@
 import httpx
 
 from openclaw_gateway.schemas.media import (
-    JellyseerrRequestResponse,
+    SeerrRequestResponse,
     MediaItem,
     MediaSearchResponse,
 )
 
 
-JELLYSEERR_AVAILABLE_STATUS = 5
+SEERR_AVAILABLE_STATUS = 5
 REQUEST_STATUS_LABELS = {
     1: "pending",
     2: "approved",
@@ -15,7 +15,7 @@ REQUEST_STATUS_LABELS = {
 }
 
 
-class JellyseerrClient:
+class SeerrClient:
     def __init__(self, base_url: str, api_key: str, timeout_seconds: float) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
@@ -37,7 +37,7 @@ class JellyseerrClient:
         self,
         media_type: str,
         tmdb_id: int,
-    ) -> JellyseerrRequestResponse:
+    ) -> SeerrRequestResponse:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
                 f"{self._base_url}{self._detail_path(media_type, tmdb_id)}",
@@ -45,7 +45,7 @@ class JellyseerrClient:
             )
             response.raise_for_status()
 
-        return JellyseerrRequestResponse(
+        return SeerrRequestResponse(
             status="valid",
             media_type=media_type,
             tmdb_id=tmdb_id,
@@ -59,7 +59,7 @@ class JellyseerrClient:
         self,
         media_type: str,
         tmdb_id: int,
-    ) -> JellyseerrRequestResponse:
+    ) -> SeerrRequestResponse:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
                 f"{self._base_url}/api/v1/request",
@@ -68,7 +68,7 @@ class JellyseerrClient:
             )
 
         if self._is_duplicate_request_response(response):
-            return JellyseerrRequestResponse(
+            return SeerrRequestResponse(
                 status="duplicate",
                 media_type=media_type,
                 tmdb_id=tmdb_id,
@@ -80,11 +80,11 @@ class JellyseerrClient:
 
         response.raise_for_status()
         payload = response.json()
-        return JellyseerrRequestResponse(
+        return SeerrRequestResponse(
             status="created",
             media_type=media_type,
             tmdb_id=tmdb_id,
-            message="Jellyseerr request created.",
+            message="Seerr request created.",
             request_id=payload.get("id"),
             duplicate=False,
             dry_run=False,
@@ -111,7 +111,7 @@ class JellyseerrClient:
             title=str(title),
             year=year,
             overview=item.get("overview"),
-            available=media_info.get("status") == JELLYSEERR_AVAILABLE_STATUS,
+            available=media_info.get("status") == SEERR_AVAILABLE_STATUS,
             request_status=request_status,
         )
 

@@ -20,7 +20,7 @@ docker logs -f <container-name>
 
 ```
 apps/          Application stacks
-  media/       Jellyfin + Jellyseerr
+  media/       Jellyfin + Seerr
   arr-stack/   Radarr, Sonarr, Prowlarr, Bazarr, Autoscan, Cleanuparr
   downloads/   qBittorrent, NZBGet, FlareSolverr
   utilities/   Homepage dashboard
@@ -46,7 +46,7 @@ Docker networks are all pre-created externally (`external: true`) except `auth_n
 
 | Network | Purpose |
 |---|---|
-| `proxy_net` | Services exposed via nginx-proxy-manager (Jellyfin, Jellyseerr, Authentik server, AdGuard) |
+| `proxy_net` | Services exposed via nginx-proxy-manager (Jellyfin, Seerr, Authentik server, AdGuard) |
 | `media_net` | Internal communication between arr-stack and media services |
 | `vpn_net` | Download clients (qBittorrent, NZBGet) routed through Gluetun VPN |
 | `auth_net` | Authentik internal (server, worker, PostgreSQL) |
@@ -58,9 +58,9 @@ Docker networks are all pre-created externally (`external: true`) except `auth_n
 
 **VPN routing:** qBittorrent and NZBGet use `network_mode: "service:gluetun"` — they share Gluetun's network namespace, so all their traffic exits through the VPN. Gluetun must be running before these containers start.
 
-**Authentication:** Authentik is the OIDC provider. Jellyfin and Jellyseerr use a custom `preview-OIDC` image. Authentik `server` sits on both `auth_net` and `proxy_net`; the `worker` only needs `auth_net` plus Docker socket access.
+**Authentication:** Authentik is the OIDC provider. Jellyfin uses a custom OIDC image. Seerr uses `ghcr.io/seerr-team/seerr:preview-new-oidc` with Seerr's native OIDC flow against an Authentik application/provider pair. Authentik `server` sits on both `auth_net` and `proxy_net`; the `worker` only needs `auth_net` plus Docker socket access.
 
-**SSL:** The homelab root CA cert at `ssl/home-lab-root.crt` is bind-mounted read-only into services that need to trust internal TLS (Jellyfin, Jellyseerr, Homepage). Services use `NODE_EXTRA_CA_CERTS` or `update-ca-certificates` to load it.
+**SSL:** The homelab root CA cert at `ssl/home-lab-root.crt` is bind-mounted read-only into services that need to trust internal TLS (Jellyfin, Seerr, Homepage). Services use `NODE_EXTRA_CA_CERTS` or `update-ca-certificates` to load it.
 
 **Data roots:** `DATA_ROOT` (default `/data`) is for user data: media libraries, downloads, photos, and broad read-only browsing mounts. `APPDATA_ROOT` (recommended `/srv/appdata`) is for mutable container app state such as service configs, databases, generated state, cookies, queues, and certificate/config state. Homepage is the deliberate exception: selected safe config is repo-managed under `apps/utilities/homepage` and mounted with `./homepage:/app/config`.
 

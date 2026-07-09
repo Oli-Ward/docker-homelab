@@ -11,8 +11,8 @@ class GatewaySettings(BaseSettings):
     gateway_auth_token: Annotated[str, Field(min_length=1, pattern=r"^[\x21-\x7E]+$")]
     jellyfin_url: AnyHttpUrl
     jellyfin_api_key: Annotated[str, Field(min_length=1)]
-    jellyseerr_url: AnyHttpUrl
-    jellyseerr_api_key: Annotated[str, Field(min_length=1)]
+    seerr_url: AnyHttpUrl
+    seerr_api_key: Annotated[str, Field(min_length=1)]
     sonarr_url: AnyHttpUrl
     sonarr_api_key: Annotated[str, Field(min_length=1)]
     radarr_url: AnyHttpUrl

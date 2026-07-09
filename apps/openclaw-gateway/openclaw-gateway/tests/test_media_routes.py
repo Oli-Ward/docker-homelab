@@ -4,7 +4,7 @@ import pytest
 from openclaw_gateway.main import create_app
 from openclaw_gateway.schemas.automation import RatingPromptForwardResponse
 from openclaw_gateway.schemas.media import (
-    JellyseerrRequestResponse,
+    SeerrRequestResponse,
     MediaItem,
     MediaPagination,
     MediaSearchResponse,
@@ -24,8 +24,8 @@ def make_settings() -> GatewaySettings:
         gateway_auth_token="gateway-secret",
         jellyfin_url="http://jellyfin:8096",
         jellyfin_api_key="jellyfin-secret",
-        jellyseerr_url="http://jellyseerr:5055",
-        jellyseerr_api_key="jellyseerr-secret",
+        seerr_url="http://seerr:5055",
+        seerr_api_key="seerr-secret",
         sonarr_url="http://sonarr:8989",
         sonarr_api_key="sonarr-secret",
         radarr_url="http://radarr:7878",
@@ -399,7 +399,7 @@ async def test_jellyfin_watch_completed_route_rejects_partial_playback(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
+async def test_seerr_search_route_returns_normalized_items(monkeypatch):
     async def search(self, query: str) -> MediaSearchResponse:
         assert query == "alien"
         return MediaSearchResponse(
@@ -416,11 +416,11 @@ async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
             ]
         )
 
-    monkeypatch.setattr("openclaw_gateway.routers.media.JellyseerrClient.search", search)
+    monkeypatch.setattr("openclaw_gateway.routers.media.SeerrClient.search", search)
     transport = httpx.ASGITransport(app=make_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get(
-            "/v1/media/jellyseerr/search?q=alien",
+            "/v1/media/seerr/search?q=alien",
             headers={"Authorization": "Bearer gateway-secret"},
         )
 
@@ -430,11 +430,11 @@ async def test_jellyseerr_search_route_returns_normalized_items(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_jellyseerr_request_route_dry_run_validates_without_creating(monkeypatch):
+async def test_seerr_request_route_dry_run_validates_without_creating(monkeypatch):
     async def validate_request(self, media_type: str, tmdb_id: int):
         assert media_type == "movie"
         assert tmdb_id == 348
-        return JellyseerrRequestResponse(
+        return SeerrRequestResponse(
             status="valid",
             media_type="movie",
             tmdb_id=348,
@@ -445,13 +445,13 @@ async def test_jellyseerr_request_route_dry_run_validates_without_creating(monke
         )
 
     monkeypatch.setattr(
-        "openclaw_gateway.routers.media.JellyseerrClient.validate_request",
+        "openclaw_gateway.routers.media.SeerrClient.validate_request",
         validate_request,
     )
     transport = httpx.ASGITransport(app=make_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
-            "/v1/media/jellyseerr/requests",
+            "/v1/media/seerr/requests",
             headers={"Authorization": "Bearer gateway-secret"},
             json={
                 "media_type": "movie",
@@ -474,11 +474,11 @@ async def test_jellyseerr_request_route_dry_run_validates_without_creating(monke
 
 
 @pytest.mark.asyncio
-async def test_jellyseerr_request_route_requires_auth():
+async def test_seerr_request_route_requires_auth():
     transport = httpx.ASGITransport(app=make_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
-            "/v1/media/jellyseerr/requests",
+            "/v1/media/seerr/requests",
             json={"media_type": "movie", "tmdb_id": 348, "dry_run": True},
         )
 
@@ -486,28 +486,40 @@ async def test_jellyseerr_request_route_requires_auth():
 
 
 @pytest.mark.asyncio
-async def test_jellyseerr_request_route_creates_when_dry_run_is_false(monkeypatch):
+async def test_legacy_jellyseerr_route_is_removed():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/media/jellyseerr/search?q=alien",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_seerr_request_route_creates_when_dry_run_is_false(monkeypatch):
     async def create_request(self, media_type: str, tmdb_id: int):
         assert media_type == "tv"
         assert tmdb_id == 12345
-        return JellyseerrRequestResponse(
+        return SeerrRequestResponse(
             status="created",
             media_type="tv",
             tmdb_id=12345,
-            message="Jellyseerr request created.",
+            message="Seerr request created.",
             request_id=77,
             duplicate=False,
             dry_run=False,
         )
 
     monkeypatch.setattr(
-        "openclaw_gateway.routers.media.JellyseerrClient.create_request",
+        "openclaw_gateway.routers.media.SeerrClient.create_request",
         create_request,
     )
     transport = httpx.ASGITransport(app=make_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
-            "/v1/media/jellyseerr/requests",
+            "/v1/media/seerr/requests",
             headers={"Authorization": "Bearer gateway-secret"},
             json={
                 "media_type": "tv",
@@ -522,7 +534,7 @@ async def test_jellyseerr_request_route_creates_when_dry_run_is_false(monkeypatc
         "status": "created",
         "media_type": "tv",
         "tmdb_id": 12345,
-        "message": "Jellyseerr request created.",
+        "message": "Seerr request created.",
         "request_id": 77,
         "duplicate": False,
         "dry_run": False,

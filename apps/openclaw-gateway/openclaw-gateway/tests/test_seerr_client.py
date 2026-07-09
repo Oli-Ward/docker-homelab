@@ -2,13 +2,13 @@ import httpx
 import pytest
 import respx
 
-from openclaw_gateway.clients.jellyseerr import JellyseerrClient
+from openclaw_gateway.clients.seerr import SeerrClient
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_search_normalizes_results():
-    route = respx.get("http://jellyseerr:5055/api/v1/search").mock(
+async def test_seerr_search_normalizes_results():
+    route = respx.get("http://seerr:5055/api/v1/search").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -28,9 +28,9 @@ async def test_jellyseerr_search_normalizes_results():
             },
         )
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 
@@ -38,7 +38,7 @@ async def test_jellyseerr_search_normalizes_results():
 
     assert route.called
     request = route.calls.last.request
-    assert request.headers["X-Api-Key"] == "jellyseerr-secret"
+    assert request.headers["X-Api-Key"] == "seerr-secret"
     assert request.url.params["query"] == "alien"
     assert result.items[0].id == "348"
     assert result.items[0].type == "movie"
@@ -51,8 +51,8 @@ async def test_jellyseerr_search_normalizes_results():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_create_request_posts_narrow_payload():
-    route = respx.post("http://jellyseerr:5055/api/v1/request").mock(
+async def test_seerr_create_request_posts_narrow_payload():
+    route = respx.post("http://seerr:5055/api/v1/request").mock(
         return_value=httpx.Response(
             201,
             json={
@@ -62,9 +62,9 @@ async def test_jellyseerr_create_request_posts_narrow_payload():
             },
         )
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 
@@ -72,7 +72,7 @@ async def test_jellyseerr_create_request_posts_narrow_payload():
 
     assert route.called
     request = route.calls.last.request
-    assert request.headers["X-Api-Key"] == "jellyseerr-secret"
+    assert request.headers["X-Api-Key"] == "seerr-secret"
     assert request.read() == b'{"mediaType":"movie","mediaId":348}'
     assert result.status == "created"
     assert result.request_id == 77
@@ -82,16 +82,16 @@ async def test_jellyseerr_create_request_posts_narrow_payload():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_create_request_maps_duplicate_response():
-    respx.post("http://jellyseerr:5055/api/v1/request").mock(
+async def test_seerr_create_request_maps_duplicate_response():
+    respx.post("http://seerr:5055/api/v1/request").mock(
         return_value=httpx.Response(
             409,
             json={"message": "Media has already been requested"},
         )
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 
@@ -107,19 +107,19 @@ async def test_jellyseerr_create_request_maps_duplicate_response():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_validate_movie_request_fetches_tmdb_detail_without_posting():
-    detail_route = respx.get("http://jellyseerr:5055/api/v1/movie/348").mock(
+async def test_seerr_validate_movie_request_fetches_tmdb_detail_without_posting():
+    detail_route = respx.get("http://seerr:5055/api/v1/movie/348").mock(
         return_value=httpx.Response(
             200,
             json={"id": 348, "title": "Alien"},
         )
     )
-    request_route = respx.post("http://jellyseerr:5055/api/v1/request").mock(
+    request_route = respx.post("http://seerr:5055/api/v1/request").mock(
         return_value=httpx.Response(201, json={"id": 77})
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 
@@ -134,19 +134,19 @@ async def test_jellyseerr_validate_movie_request_fetches_tmdb_detail_without_pos
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_validate_tv_request_fetches_tmdb_detail_without_posting():
-    detail_route = respx.get("http://jellyseerr:5055/api/v1/tv/1399").mock(
+async def test_seerr_validate_tv_request_fetches_tmdb_detail_without_posting():
+    detail_route = respx.get("http://seerr:5055/api/v1/tv/1399").mock(
         return_value=httpx.Response(
             200,
             json={"id": 1399, "name": "Game of Thrones"},
         )
     )
-    request_route = respx.post("http://jellyseerr:5055/api/v1/request").mock(
+    request_route = respx.post("http://seerr:5055/api/v1/request").mock(
         return_value=httpx.Response(201, json={"id": 77})
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 
@@ -161,13 +161,13 @@ async def test_jellyseerr_validate_tv_request_fetches_tmdb_detail_without_postin
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_jellyseerr_validate_request_requires_existing_tmdb_detail():
-    respx.get("http://jellyseerr:5055/api/v1/movie/348").mock(
+async def test_seerr_validate_request_requires_existing_tmdb_detail():
+    respx.get("http://seerr:5055/api/v1/movie/348").mock(
         return_value=httpx.Response(404, json={"message": "Not Found"})
     )
-    client = JellyseerrClient(
-        base_url="http://jellyseerr:5055",
-        api_key="jellyseerr-secret",
+    client = SeerrClient(
+        base_url="http://seerr:5055",
+        api_key="seerr-secret",
         timeout_seconds=5.0,
     )
 

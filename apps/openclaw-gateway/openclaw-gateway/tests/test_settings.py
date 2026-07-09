@@ -9,8 +9,8 @@ def valid_settings_kwargs() -> dict[str, str | float]:
         "gateway_auth_token": "gateway-secret",
         "jellyfin_url": "http://jellyfin:8096",
         "jellyfin_api_key": "jellyfin-secret",
-        "jellyseerr_url": "http://jellyseerr:5055",
-        "jellyseerr_api_key": "jellyseerr-secret",
+        "seerr_url": "http://seerr:5055",
+        "seerr_api_key": "seerr-secret",
         "sonarr_url": "http://sonarr:8989",
         "sonarr_api_key": "sonarr-secret",
         "radarr_url": "http://radarr:7878",
@@ -28,7 +28,7 @@ def test_settings_accept_valid_config():
 
     assert settings.gateway_auth_token == "gateway-secret"
     assert str(settings.jellyfin_url) == "http://jellyfin:8096/"
-    assert str(settings.jellyseerr_url) == "http://jellyseerr:5055/"
+    assert str(settings.seerr_url) == "http://seerr:5055/"
     assert str(settings.sonarr_url) == "http://sonarr:8989/"
     assert str(settings.radarr_url) == "http://radarr:7878/"
     assert str(settings.ryot_url) == "http://ryot:8000/"

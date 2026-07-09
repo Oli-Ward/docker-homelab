@@ -16,7 +16,7 @@ Included `${APPDATA_ROOT}` paths:
 - `gluetun`
 - `icloudpd`
 - `jellyfin`
-- `jellyseerr`
+- `jellyseerr` (retained Seerr appdata path after OPN-242)
 - `n8n`
 - `nginx-proxy-manager/data`
 - `nginx-proxy-manager/letsencrypt`
@@ -97,7 +97,10 @@ Verify the artifact hash:
 sha256sum -c /mnt/backup/media-docker-appdata/media-appdata-<timestamp>.tar.gz.age.sha256
 ```
 
-## Restore Verification: Jellyseerr Example
+## Restore Verification: Seerr Appdata Example
+
+OPN-242 migrated the running app to Seerr but kept the appdata path on `${APPDATA_ROOT}/jellyseerr` to avoid making the existing database/config disappear during routine redeploys.
+Seerr's OIDC setup is configured in its mounted `settings.json`, so this restore check covers the retained Seerr appdata subtree.
 
 Do not restore over live state as a first test.
 
