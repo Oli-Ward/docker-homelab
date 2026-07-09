@@ -6,7 +6,7 @@ services:
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
-      - TZ=${TZ}Wh
+      - TZ=${TZ}
     volumes:
       - ${APPDATA_ROOT}/radarr:/config
       - ${DATA_ROOT}/media/movies:/movies
