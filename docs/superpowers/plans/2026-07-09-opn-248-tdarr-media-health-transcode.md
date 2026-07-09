@@ -216,7 +216,7 @@ git commit -m "OPN-248: document Tdarr safe rollout"
 - Consumes: deployed Tdarr service through Komodo.
 - Produces: recorded evaluation result.
 
-- [ ] **Step 1: Prepare host paths before deployment**
+- [x] **Step 1: Prepare host paths before deployment**
 
 With user approval, create host directories:
 
@@ -230,7 +230,7 @@ Expected: directories exist and are owned so container user `${PUID}:${PGID}` ca
 
 Redeploy the media stack in Komodo. Do not run direct `docker compose up` unless explicitly approved.
 
-- [ ] **Step 3: Configure external UI**
+- [x] **Step 3: Configure external UI**
 
 Configure outside the repo:
 
@@ -240,7 +240,7 @@ Authentik: application/provider/outpost entry for Tdarr
 AdGuard: tdarr.home.lab DNS record/rewrite
 ```
 
-- [ ] **Step 4: Run focused read-only diagnostics**
+- [x] **Step 4: Run focused read-only diagnostics**
 
 After deploy, with permission for read-only live inspection:
 

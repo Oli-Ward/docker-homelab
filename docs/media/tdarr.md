@@ -36,33 +36,47 @@ Tdarr is installed for health-check/transcode evaluation only. It must not proce
 - Keep status: pending first test.
 - Reason: pending resource and playback evidence.
 
-## Deployment Prep Status (2026-07-09)
+## Deployment Prep Status (2026-07-10)
 
 - [x] Host test library created: `/data/tdarr-test-library`
 - [x] Host transcode cache created: `/data/tdarr-transcode-cache`
-- [ ] Host app-state directory created: `${APPDATA_ROOT}/tdarr` (`/srv/appdata/tdarr`)
-  - Blocked in this environment: `/srv` is root-owned; creation requires privileged host access.
+- [x] Host app-state directory created: `${APPDATA_ROOT}/tdarr` (`/srv/appdata/tdarr`)
 
 ## Runtime Validation Status
 
-- Tdarr container not currently deployed (`docker logs tdarr` / `docker inspect tdarr` return "no such container/object").
-- NPM/AuthentiK/AdGuard external UI configuration not yet applied (manual deployment step pending).
-- First Test Result not yet recorded (depends on deployment and manual safe test run).
-- Additional local check:
-  - `ls -ld /srv/appdata/tdarr` returned `Permission denied` in this environment.
+- Tdarr container is running.
+- `docker inspect tdarr` confirms mounts:
+  - `/data/tdarr-test-library` at `/media`
+  - `/data/tdarr-transcode-cache` at `/temp`
+  - `/srv/appdata/tdarr/server` at `/app/server`
+  - `/srv/appdata/tdarr/configs` at `/app/configs`
+  - `/srv/appdata/tdarr/logs` at `/app/logs`
+- `docker logs tdarr --tail=80` shows server/node startup, node registration, and binary/scanner tests completing.
+- NPM proxy host configured:
+  - ID: `24`
+  - Hostname: `tdarr.home.lab`
+  - Upstream: `http://tdarr:8265`
+  - Certificate: `6`
+  - SSL forced: enabled
+  - Websocket support: enabled
+- Authentik configured:
+  - Proxy provider: `tdarr` (`40`)
+  - Application: `Tdarr` (`tdarr`)
+  - Provider attached to embedded outpost.
+- External route check:
+  - `curl -k -I https://tdarr.home.lab` returns `HTTP/2 302` to `/outpost.goauthentik.io/start`, which is the expected unauthenticated proxy-auth redirect.
+- Homepage entry is present in repo-managed config:
+  - `https://tdarr.home.lab`
+  - `siteMonitor: http://tdarr:8265`
+- First Test Result not yet recorded. Run only against copied sample media in the test library.
 
 ## Task 3 Deployment Checklist (remaining)
 
-- Run after Komodo media stack redeploy:
-  - `docker logs tdarr --tail=100`
-  - `docker inspect tdarr`
-  - Confirm no restart loop, open UI on port `8265`, and mounts are:
-    - `/data/tdarr-test-library` at `/media`
-    - `/data/tdarr-transcode-cache` at `/temp`
-- Configure `tdarr.home.lab`:
-  - NPM route to `tdarr:8265`
-  - AuthentiK app/provider/outpost for Tdarr
-  - AdGuard record for `tdarr.home.lab`
+- Run first safe Tdarr UI test through `https://tdarr.home.lab`.
+- Add only copied sample files from `/data/tdarr-test-library`.
+- Start with health checks before any transcode.
+- Keep worker counts low.
+- Record CPU/RAM/disk observations and Jellyfin playback result below.
 
 ## First Test Result
 
