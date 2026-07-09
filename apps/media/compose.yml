@@ -23,20 +23,28 @@ services:
       - "auth.home.lab:192.168.1.103"
       - "authentik.home.lab:192.168.1.103"
 
-  # Jellyseerr - Request Management
-  jellyseerr:
-    image: fallenbagel/jellyseerr:preview-OIDC
-    container_name: jellyseerr
+  # Seerr - Request Management
+  seerr:
+    image: ghcr.io/seerr-team/seerr:preview-new-oidc
+    init: true
+    container_name: seerr
     networks:
       - media_net
       - proxy_net
     environment:
       - LOG_LEVEL=info
       - TZ=${TZ}
+      - PORT=5055
       - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt
     volumes:
       - ${APPDATA_ROOT}/jellyseerr:/app/config
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/settings/public || exit 1
+      start_period: 20s
+      timeout: 3s
+      interval: 15s
+      retries: 3
     restart: unless-stopped
 
   # Ryot - Media Tracker
@@ -56,6 +64,7 @@ services:
       - MOVIES_AND_SHOWS_TMDB_ACCESS_TOKEN=${RYOT_TMDB_ACCESS_TOKEN}
       - DISABLE_TELEMETRY=${RYOT_DISABLE_TELEMETRY}
       - USERS_ALLOW_REGISTRATION=${RYOT_USERS_ALLOW_REGISTRATION}
+      - USERS_DISABLE_LOCAL_AUTH=${RYOT_USERS_DISABLE_LOCAL_AUTH:-false}
       - SERVER_OIDC_CLIENT_ID=${RYOT_OIDC_CLIENT_ID}
       - SERVER_OIDC_CLIENT_SECRET=${RYOT_OIDC_CLIENT_SECRET}
       - SERVER_OIDC_ISSUER_URL=${RYOT_OIDC_ISSUER_URL}
@@ -64,6 +73,9 @@ services:
       - NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/home-lab-root.crt
     volumes:
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
+    extra_hosts:
+      - "auth.home.lab:192.168.1.103"
+      - "authentik.home.lab:192.168.1.103"
     restart: unless-stopped
 
   # Ryot Postgres - Media Tracker Database
@@ -79,6 +91,36 @@ services:
       - POSTGRES_PASSWORD=${RYOT_POSTGRES_PASSWORD}
     volumes:
       - ${APPDATA_ROOT}/ryot-postgres:/var/lib/postgresql
+    restart: unless-stopped
+
+  # Tdarr - Media health checks and transcoding evaluation
+  tdarr:
+    image: ghcr.io/haveagitgat/tdarr:latest
+    container_name: tdarr
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK_SET=002
+      - serverIP=0.0.0.0
+      - serverPort=${TDARR_SERVER_PORT}
+      - webUIPort=${TDARR_WEBUI_PORT}
+      - internalNode=${TDARR_INTERNAL_NODE}
+      - inContainer=true
+      - ffmpegVersion=7
+      - nodeName=${TDARR_NODE_NAME}
+      - auth=false
+      - openBrowser=false
+      - maxLogSizeMB=10
+    volumes:
+      - ${APPDATA_ROOT}/tdarr/server:/app/server
+      - ${APPDATA_ROOT}/tdarr/configs:/app/configs
+      - ${APPDATA_ROOT}/tdarr/logs:/app/logs
+      - ${TDARR_TEST_LIBRARY_PATH}:/media:rw
+      - ${TDARR_TRANSCODE_CACHE_PATH}:/temp
+    networks:
+      - media_net
+      - proxy_net
     restart: unless-stopped
 
 networks:
