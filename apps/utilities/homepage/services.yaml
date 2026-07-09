@@ -92,20 +92,14 @@
           username: oliward
           password: "{{HOMEPAGE_VAR_NZBGET_PASSWORD}}"
 
-    - Jellyseerr:
+    - Seerr:
         icon: jellyseerr.png
-        href: https://jellyseerr.home.lab
+        href: https://seerr.home.lab
         description: Request Media
         widget:
           type: jellyseerr
-          url: http://jellyseerr:5055
+          url: http://seerr:5055
           key: "{{HOMEPAGE_VAR_JELLYSEERR_API_KEY}}"
-
-    - Ryot:
-        icon: mdi-movie-open-star
-        href: https://ryot.home.lab
-        description: Media Tracker
-        siteMonitor: http://ryot:8000/health
 
 
 # Download Management
@@ -148,10 +142,37 @@
           missingEpisodes: true
           missingMovies: true
 
-    - Bazarr Sync Job:
-        icon: mdi-sync
-        href: https://komodo.home.lab
-        description: Trigger subtitle resync in Komodo
+    - Cleanuparr:
+        icon: mdi-broom
+        href: https://cleanup.home.lab
+        description: Cleanup
+        widget:
+          type: customapi
+          url: http://cleanuparr:11011/api/stats
+          headers:
+            X-Api-Key: "{{HOMEPAGE_VAR_CLEANUPARR_API_KEY}}"
+          mappings:
+              - field: events.totalCount
+                label: Events (24h)
+                format: number
+              - field: strikes.totalCount
+                label: Strikes (24h)
+                format: number
+              - field: strikes.itemsRemoved
+                label: Removed
+                format: number
+
+    - Ryot:
+        icon: mdi-movie-open-star
+        href: https://ryot.home.lab
+        description: Media Tracker
+        siteMonitor: http://ryot:8000/health
+
+    - Tdarr:
+        icon: tdarr.png
+        href: https://tdarr.home.lab
+        description: Media health checks and transcoding
+        siteMonitor: http://tdarr:8265
 
     - Maintainerr:
         icon: mdi-delete-clock
@@ -159,20 +180,24 @@
         description: Watched media cleanup
         siteMonitor: http://maintainerr:6246/api/health/ready
 
-# Automation
-- Automation:
-    - n8n:
-        icon: n8n.png
-        href: https://n8n.home.lab
-        description: Workflow Automation
-        siteMonitor: http://n8n:5678
-
 # System
 - System:
     - Paperless-ngx:
         icon: paperless-ngx.png
         href: https://paperless.home.lab
         description: Documents
+
+    - Backrest:
+        icon: mdi-backup-restore
+        href: https://backrest.home.lab
+        description: Restic backup management
+        siteMonitor: http://backrest:9898
+
+    - n8n:
+        icon: n8n.png
+        href: https://n8n.home.lab
+        description: Workflow Automation
+        siteMonitor: http://n8n:5678
 
     - Komodo:
         icon: komodo.png
@@ -231,23 +256,3 @@
           url: http://nginx-proxy-manager:81
           username: oliver.ward94@gmail.com
           password: "{{HOMEPAGE_VAR_NPM_PASSWORD}}"
-
-    - Cleanuparr:
-        icon: mdi-broom
-        href: https://cleanup.home.lab
-        description: Cleanup
-        widget:
-          type: customapi
-          url: http://cleanuparr:11011/api/stats
-          headers:
-            X-Api-Key: "{{HOMEPAGE_VAR_CLEANUPARR_API_KEY}}"
-          mappings:
-              - field: events.totalCount
-                label: Events (24h)
-                format: number
-              - field: strikes.totalCount
-                label: Strikes (24h)
-                format: number
-              - field: strikes.itemsRemoved
-                label: Removed
-                format: number

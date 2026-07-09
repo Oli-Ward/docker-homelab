@@ -33,7 +33,7 @@ Services (Sonarr, Radarr, etc.)
   * Used for apps without native auth (e.g. Sonarr, Radarr)
 * **OIDC**
 
-  * Used for supported apps (e.g. Cleanuparr, Jellyseerr)
+  * Used for supported apps with native login flow (e.g. Cleanuparr, Seerr)
 
 ---
 
@@ -42,10 +42,11 @@ Services (Sonarr, Radarr, etc.)
 ### Media
 
 * Jellyfin – Media server
-* Jellyseerr – Requests
+* Seerr – Requests via Authentik OIDC
 * Ryot – Media tracker
 * qBittorrent – Torrents
 * NZBGet – Usenet
+* Tdarr – Media health checks and transcoding evaluation
 
 ### Management
 
@@ -54,11 +55,15 @@ Services (Sonarr, Radarr, etc.)
 * Prowlarr – Indexers
 * Bazarr – Subtitles
 * Maintainerr – Watched media cleanup
+* Seekarr – Repeat-search automation helper (internal, dry-run first)
+* Mediastarr – Missing-content/quality-upgrade helper (internal-only)
+* Recyclarr – Sonarr/Radarr quality profile and format sync
 
 ### Utilities
 
 * Cleanuparr – Cleanup automation
 * n8n – Workflow automation
+* Backrest – Restic backup management
 * Glances – System metrics
 * Speedtest Tracker – Network monitoring
 * File Browser – File access
@@ -77,7 +82,7 @@ Examples:
 
 * `sonarr.home.lab`
 * `radarr.home.lab`
-* `jellyseerr.home.lab`
+* `seerr.home.lab`
 * `ryot.home.lab`
 * `cleanup.home.lab`
 * `torrent.home.lab`
@@ -149,7 +154,11 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 * Do **not** proxy apps like Sonarr directly — always via Authentik
 * Maintainerr must be exposed through Nginx Proxy Manager and protected by Authentik proxy auth before browser use
 * Use internal URLs for widgets to avoid SSL/auth issues
+* Backrest must start with config/appdata scope only; do not enable media-volume backups in the first rollout.
 * Glances runs in `host` mode → accessed via host IP
+* Mediastarr is internal-only by default until a UI exposure approval decision for OPN-246 is recorded.
+* Tdarr must start with the dedicated test library and no full-library bulk transcode until resource usage and output safety are proven.
+* Recyclarr is an internal scheduled/CLI service only; do not expose it through Nginx Proxy Manager or Authentik.
 
 ---
 
