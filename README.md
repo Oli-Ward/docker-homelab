@@ -55,7 +55,7 @@ Services (Sonarr, Radarr, etc.)
 * Prowlarr – Indexers
 * Bazarr – Subtitles
 * Maintainerr – Watched media cleanup
-* Seekarr – Repeat-search automation helper (internal, dry-run first)
+* Seekarr – Repeat-search automation helper (internal evaluation)
 * Mediastarr – Missing-content/quality-upgrade helper
 * Recyclarr – Sonarr/Radarr quality profile and format sync
 
@@ -158,6 +158,7 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 * Backrest must start with config/appdata scope only; do not enable media-volume backups in the first rollout.
 * Glances runs in `host` mode → accessed via host IP
 * Mediastarr is exposed via `https://mediastarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth.
+* Seekarr is internal-only while it is evaluated; configure Arr instances in the web UI with internal URLs before enabling schedules.
 * Tdarr must start with the dedicated test library and no full-library bulk transcode until resource usage and output safety are proven.
 * Recyclarr is an internal scheduled/CLI service only; do not expose it through Nginx Proxy Manager or Authentik.
 

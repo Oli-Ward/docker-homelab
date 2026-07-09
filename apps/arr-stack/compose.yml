@@ -112,17 +112,10 @@ services:
     image: ghcr.io/tumeden/seekarr:latest
     container_name: seekarr
     environment:
-      - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
-      - SONARR_URL=${SEEKARR_SONARR_URL}
-      - RADARR_URL=${SEEKARR_RADARR_URL}
-      - SONARR_API_KEY=${SEEKARR_SONARR_API_KEY}
-      - RADARR_API_KEY=${SEEKARR_RADARR_API_KEY}
-      - DRY_RUN=${SEEKARR_DRY_RUN}
-      - SCHEDULE=${SEEKARR_SCHEDULE}
     volumes:
-      - ${APPDATA_ROOT}/seekarr:/config
+      - ${APPDATA_ROOT}/seekarr:/data
     restart: unless-stopped
     networks:
       - media_net
