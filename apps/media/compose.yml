@@ -93,36 +93,6 @@ services:
       - ${APPDATA_ROOT}/ryot-postgres:/var/lib/postgresql
     restart: unless-stopped
 
-  # Tdarr - Media health checks and transcoding evaluation
-  tdarr:
-    image: ghcr.io/haveagitgat/tdarr:latest
-    container_name: tdarr
-    environment:
-      - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - UMASK_SET=002
-      - serverIP=0.0.0.0
-      - serverPort=${TDARR_SERVER_PORT}
-      - webUIPort=${TDARR_WEBUI_PORT}
-      - internalNode=${TDARR_INTERNAL_NODE}
-      - inContainer=true
-      - ffmpegVersion=7
-      - nodeName=${TDARR_NODE_NAME}
-      - auth=false
-      - openBrowser=false
-      - maxLogSizeMB=10
-    volumes:
-      - ${APPDATA_ROOT}/tdarr/server:/app/server
-      - ${APPDATA_ROOT}/tdarr/configs:/app/configs
-      - ${APPDATA_ROOT}/tdarr/logs:/app/logs
-      - ${TDARR_TEST_LIBRARY_PATH}:/media:rw
-      - ${TDARR_TRANSCODE_CACHE_PATH}:/temp
-    networks:
-      - media_net
-      - proxy_net
-    restart: unless-stopped
-
 networks:
   media_net:
     external: true

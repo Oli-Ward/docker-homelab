@@ -180,12 +180,6 @@
         description: Media Tracker
         siteMonitor: http://ryot:8000/health
 
-    - Tdarr:
-        icon: tdarr.png
-        href: https://tdarr.home.lab
-        description: Media health checks and transcoding
-        siteMonitor: http://tdarr:8265
-
     - Maintainerr:
         icon: mdi-delete-clock
         href: https://maintainerr.home.lab

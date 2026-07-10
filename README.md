@@ -46,7 +46,6 @@ Services (Sonarr, Radarr, etc.)
 * Ryot – Media tracker
 * qBittorrent – Torrents
 * NZBGet – Usenet
-* Tdarr – Media health checks and transcoding evaluation
 
 ### Management
 
@@ -159,7 +158,6 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 * Glances runs in `host` mode → accessed via host IP
 * Mediastarr is exposed via `https://mediastarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth.
 * Seekarr is exposed via `https://seekarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth; configure Arr instances in the web UI with internal URLs before enabling schedules.
-* Tdarr must start with the dedicated test library and no full-library bulk transcode until resource usage and output safety are proven.
 * Recyclarr is an internal scheduled/CLI service only; do not expose it through Nginx Proxy Manager or Authentik.
 
 ---
