@@ -176,6 +176,13 @@ signatures, or gateway tokens. The optional work-item fields above are the
 allowlisted metadata downstream agent-pickup logic can use to decide whether an
 event is eligible for dry-run pickup.
 
+For local dry-run checks, `apps/utilities/n8n/scripts/plane-agent-pickup-preview.js`
+consumes the same normalized event from stdin or a JSON file and returns only a
+decision record. It reports `ignored` for unsupported or not-ready events,
+`needs_input` when `Ready for Agent` is missing a `repo:<name>` label, and
+`ready` when the ticket has enough routing metadata. The helper is read-only:
+it does not call Plane, OpenClaw, GitHub, SSH, Docker, or live n8n APIs.
+
 Example Plane work-item create request:
 
 ```json

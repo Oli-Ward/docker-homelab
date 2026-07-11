@@ -292,6 +292,18 @@ API keys, or arbitrary nested Plane objects to the normalized event. Downstream
 agent pickup can use the allowlisted `state_name`, `label_names`, `project_id`,
 and sequence metadata for dry-run eligibility decisions.
 
+The repo-managed pickup preview helper is:
+
+- script: `apps/utilities/n8n/scripts/plane-agent-pickup-preview.js`
+- input: one normalized Plane dispatch event from stdin or a JSON file path
+- output: a compact JSON decision with `ignored`, `needs_input`, or `ready`
+
+The helper is read-only and is not live-enabled by default. It treats only
+`event: "issue"` records in `Ready for Agent` as pickup candidates, requires a
+`repo:<name>` label before returning `ready`, and copies only allowlisted
+metadata to its output. It does not start OpenClaw/Codex, write to Plane, call
+GitHub, SSH anywhere, or mutate n8n state.
+
 Configure `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` with Plane user IDs for the
 gateway service account, OpenClaw write-back automation, Codex/ChatGPT
 integration users, or n8n automation actors. Matching webhook deliveries are
