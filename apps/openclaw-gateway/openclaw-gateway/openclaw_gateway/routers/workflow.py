@@ -31,6 +31,8 @@ from openclaw_plane_sdk import PlaneApiError, PlaneClient, PlaneResponseError
 
 ResponseT = TypeVar("ResponseT")
 logger = logging.getLogger(__name__)
+PLANE_LIST_RESPONSE_EXCLUDE = {"items": {"__all__": {"raw"}}}
+PLANE_OBJECT_RESPONSE_EXCLUDE = {"raw"}
 
 
 def _audit_plane_write(
@@ -116,19 +118,31 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
-    @router.get("/plane/projects")
+    @router.get(
+        "/plane/projects",
+        response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
+    )
     async def plane_projects() -> PlaneProjectsResponse:
         return await _map_plane_errors(plane_client().list_projects)
 
-    @router.get("/plane/projects/{project_id}/states")
+    @router.get(
+        "/plane/projects/{project_id}/states",
+        response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
+    )
     async def plane_states(project_id: str) -> PlaneStatesResponse:
         return await _map_plane_errors(lambda: plane_client().list_states(project_id))
 
-    @router.get("/plane/projects/{project_id}/labels")
+    @router.get(
+        "/plane/projects/{project_id}/labels",
+        response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
+    )
     async def plane_labels(project_id: str) -> PlaneLabelsResponse:
         return await _map_plane_errors(lambda: plane_client().list_labels(project_id))
 
-    @router.get("/plane/search")
+    @router.get(
+        "/plane/search",
+        response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
+    )
     async def plane_search(
         q: str = Query(min_length=1),
         project_id: str | None = None,
@@ -142,7 +156,10 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             )
         )
 
-    @router.get("/plane/projects/{project_id}/work-items")
+    @router.get(
+        "/plane/projects/{project_id}/work-items",
+        response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
+    )
     async def plane_project_work_items(
         project_id: str,
         limit: int | None = Query(default=None, ge=1, le=100),
@@ -151,13 +168,19 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             lambda: plane_client().list_project_work_items(project_id=project_id, limit=limit)
         )
 
-    @router.get("/plane/projects/{project_id}/work-items/{work_item_id}")
+    @router.get(
+        "/plane/projects/{project_id}/work-items/{work_item_id}",
+        response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
+    )
     async def plane_work_item(project_id: str, work_item_id: str) -> PlaneWorkItem:
         return await _map_plane_errors(
             lambda: plane_client().get_work_item(project_id=project_id, work_item_id=work_item_id)
         )
 
-    @router.post("/plane/projects/{project_id}/work-items")
+    @router.post(
+        "/plane/projects/{project_id}/work-items",
+        response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
+    )
     async def plane_create_work_item(
         project_id: str,
         work_item: PlaneWorkItemCreate,
@@ -172,7 +195,10 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         )
         return created
 
-    @router.patch("/plane/projects/{project_id}/work-items/{work_item_id}")
+    @router.patch(
+        "/plane/projects/{project_id}/work-items/{work_item_id}",
+        response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
+    )
     async def plane_update_work_item(
         project_id: str,
         work_item_id: str,
@@ -193,7 +219,10 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         )
         return updated
 
-    @router.post("/plane/projects/{project_id}/work-items/{work_item_id}/comments")
+    @router.post(
+        "/plane/projects/{project_id}/work-items/{work_item_id}/comments",
+        response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
+    )
     async def plane_add_comment(
         project_id: str,
         work_item_id: str,

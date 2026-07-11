@@ -278,6 +278,106 @@ async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplo
 
 
 @pytest.mark.asyncio
+async def test_plane_routes_exclude_raw_upstream_payloads(monkeypatch):
+    async def list_projects(self) -> PlaneProjectsResponse:
+        return PlaneProjectsResponse(
+            items=[
+                PlaneProject(
+                    id="project-1",
+                    name="OpenClaw",
+                    raw={"upstream_secret": "raw-project-sentinel"},
+                )
+            ]
+        )
+
+    async def search_work_items(self, query, project_id=None, limit=None) -> PlaneWorkItemsResponse:
+        return PlaneWorkItemsResponse(
+            items=[
+                PlaneWorkItem(
+                    id="work-item-1",
+                    name="Search result",
+                    project_id="project-1",
+                    raw={"upstream_secret": "raw-work-item-sentinel"},
+                )
+            ]
+        )
+
+    async def get_work_item(self, project_id, work_item_id):
+        return PlaneWorkItem(
+            id=work_item_id,
+            name="Single item",
+            project_id=project_id,
+            raw={"upstream_secret": "raw-single-item-sentinel"},
+        )
+
+    async def create_work_item(self, project_id, work_item):
+        return PlaneWorkItem(
+            id="created-work-item",
+            name=work_item.name,
+            project_id=project_id,
+            raw={"upstream_secret": "raw-created-item-sentinel"},
+        )
+
+    async def add_comment(self, project_id, work_item_id, comment):
+        return PlaneComment(
+            id="comment-1",
+            comment_html=comment.comment_html,
+            raw={"upstream_secret": "raw-comment-sentinel"},
+        )
+
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.search_work_items", search_work_items)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.get_work_item", get_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.create_work_item", create_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
+
+    transport = httpx.ASGITransport(app=make_app())
+    headers = {"Authorization": "Bearer gateway-secret"}
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        projects = await client.get("/v1/workflow/plane/projects", headers=headers)
+        search = await client.get(
+            "/v1/workflow/plane/search",
+            params={"q": "item"},
+            headers=headers,
+        )
+        single = await client.get(
+            "/v1/workflow/plane/projects/project-1/work-items/work-item-1",
+            headers=headers,
+        )
+        created = await client.post(
+            "/v1/workflow/plane/projects/project-1/work-items",
+            headers=headers,
+            json={"name": "Created from route"},
+        )
+        commented = await client.post(
+            "/v1/workflow/plane/projects/project-1/work-items/work-item-1/comments",
+            headers=headers,
+            json={"comment_html": "<p>Progress</p>"},
+        )
+
+    bodies = [
+        projects.json(),
+        search.json(),
+        single.json(),
+        created.json(),
+        commented.json(),
+    ]
+    rendered = json.dumps(bodies)
+    assert all(response.status_code == 200 for response in [projects, search, single, created, commented])
+    assert "raw" not in rendered
+    assert "raw-project-sentinel" not in rendered
+    assert "raw-work-item-sentinel" not in rendered
+    assert "raw-single-item-sentinel" not in rendered
+    assert "raw-created-item-sentinel" not in rendered
+    assert "raw-comment-sentinel" not in rendered
+    assert bodies[0]["items"][0]["name"] == "OpenClaw"
+    assert bodies[1]["items"][0]["id"] == "work-item-1"
+    assert bodies[2]["name"] == "Single item"
+    assert bodies[3]["id"] == "created-work-item"
+    assert bodies[4]["comment_html"] == "<p>Progress</p>"
+
+
+@pytest.mark.asyncio
 async def test_plane_routes_map_invalid_plane_response_to_secret_free_gateway_error(monkeypatch):
     async def list_projects(self) -> PlaneProjectsResponse:
         raise PlaneResponseError("plane returned invalid json response")

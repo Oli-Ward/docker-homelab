@@ -72,7 +72,7 @@ PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
 N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 ```
 
-The gateway authenticates to Plane with `X-API-Key` through the local `openclaw_plane_sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+The gateway authenticates to Plane with `X-API-Key` through the local `openclaw_plane_sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key, raw upstream error bodies, or SDK `raw` payload fields. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
 
 ## Plane SDK
 
