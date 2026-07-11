@@ -15,6 +15,7 @@ def write_fake_curl(
     n8n_status: str = "200",
     seerr_request_status: str = "200",
     plane_queue_status: str = "200",
+    plane_queue_body: str = '{"queued_count":2,"dedupe_count":2,"dispatched_count":1,"pending_count":1,"malformed_count":0}',
 ) -> Path:
     curl = tmp_path / "curl"
     log = tmp_path / "curl.log"
@@ -32,6 +33,18 @@ for arg in "$@"; do
 done
 
 url="${{@: -1}}"
+output_path=""
+for ((i = 1; i <= $#; i++)); do
+  if [[ "${{!i}}" == "-o" ]]; then
+    next=$((i + 1))
+    output_path="${{!next}}"
+  fi
+done
+write_body() {{
+  if [[ -n "$output_path" && "$output_path" != "/dev/null" ]]; then
+    printf '%s' "$1" > "$output_path"
+  fi
+}}
 case "$url" in
   */health)
     printf "200"
@@ -79,6 +92,7 @@ case "$url" in
       echo "curl: (22) The requested URL returned error: {plane_queue_status}" >&2
       exit 22
     fi
+    write_body '{plane_queue_body}'
     printf "{plane_queue_status}"
     ;;
   *)
@@ -237,6 +251,30 @@ def test_smoke_script_can_check_plane_webhook_queue_status(tmp_path: Path):
     assert result.returncode == 0
     assert "OpenClaw gateway smoke test passed." in result.stdout
     assert "/v1/workflow/plane/webhook/queue" in curl_log
+    assert "gateway-secret" not in result.stdout
+    assert "gateway-secret" not in result.stderr
+
+
+def test_smoke_script_reports_plane_webhook_queue_missing_field(tmp_path: Path):
+    write_fake_curl(
+        tmp_path,
+        plane_queue_status="200",
+        plane_queue_body='{"queued_count":2,"dedupe_count":2,"dispatched_count":1,"malformed_count":0}',
+    )
+    env = smoke_env(tmp_path)
+    env["CHECK_PLANE_WEBHOOK_QUEUE"] = "1"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "Plane webhook queue response missing pending_count." in result.stderr
     assert "gateway-secret" not in result.stdout
     assert "gateway-secret" not in result.stderr
 

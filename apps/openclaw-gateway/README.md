@@ -597,6 +597,17 @@ CHECK_N8N_SMOKE=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWA
 
 Capture non-secret evidence from gateway and n8n logs showing the generated request ID and success result. Do not paste token values into diagnostics or Linear.
 
+To include the Plane webhook queue diagnostics endpoint after webhook state is
+configured:
+
+```bash
+CHECK_PLANE_WEBHOOK_QUEUE=1 GATEWAY_URL=http://192.0.2.10:8088 GATEWAY_AUTH_TOKEN="$GATEWAY_AUTH_TOKEN" scripts/smoke-openclaw-gateway.sh
+```
+
+This checks HTTP 200 and verifies the non-secret queue count fields are present:
+`queued_count`, `dedupe_count`, `dispatched_count`, `pending_count`, and
+`malformed_count`. It does not print the gateway token or queue response body.
+
 ## Rollback
 
 Use Komodo to redeploy the previous gateway configuration or image. If rolling back from Git, revert the route/client/docs changes for OPN-211 and redeploy only the `openclaw-gateway` stack through Komodo. Do not stop, recreate, pull, or restart containers directly from this repository unless that action has been explicitly approved.

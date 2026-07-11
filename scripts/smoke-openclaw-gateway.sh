@@ -3,6 +3,14 @@ set -euo pipefail
 
 gateway_url="${1:-${GATEWAY_URL:-}}"
 gateway_token="${2:-${GATEWAY_AUTH_TOKEN:-}}"
+tmp_files=()
+
+cleanup() {
+  if [[ "${#tmp_files[@]}" -gt 0 ]]; then
+    rm -f "${tmp_files[@]}"
+  fi
+}
+trap cleanup EXIT
 
 if [[ -z "${gateway_url}" ]]; then
   echo "Usage: $0 <gateway-url> <gateway-token>" >&2
@@ -110,9 +118,11 @@ if [[ "${CHECK_N8N_SMOKE:-0}" == "1" ]]; then
 fi
 
 if [[ "${CHECK_PLANE_WEBHOOK_QUEUE:-0}" == "1" ]]; then
+  plane_queue_body="$(mktemp)"
+  tmp_files+=("${plane_queue_body}")
   plane_queue_status="$(
     curl -sS \
-      -o /dev/null \
+      -o "${plane_queue_body}" \
       -w "%{http_code}" \
       -H "Authorization: Bearer ${gateway_token}" \
       "${gateway_url%/}/v1/workflow/plane/webhook/queue"
@@ -122,6 +132,13 @@ if [[ "${CHECK_PLANE_WEBHOOK_QUEUE:-0}" == "1" ]]; then
     echo "Authenticated Plane webhook queue check failed with HTTP ${plane_queue_status}." >&2
     exit 1
   fi
+
+  for field in queued_count dedupe_count dispatched_count pending_count malformed_count; do
+    if ! grep -q "\"${field}\"" "${plane_queue_body}"; then
+      echo "Plane webhook queue response missing ${field}." >&2
+      exit 1
+    fi
+  done
 fi
 
 echo "OpenClaw gateway smoke test passed."
