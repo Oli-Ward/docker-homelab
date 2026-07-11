@@ -195,6 +195,89 @@ async def test_plane_create_update_and_comment_routes(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
+
+    async def create_work_item(self, project_id, work_item):
+        return PlaneWorkItem(id="created-work-item", name=work_item.name, project_id=project_id)
+
+    async def update_work_item(self, project_id, work_item_id, update):
+        return PlaneWorkItem(id=work_item_id, name="Updated", project_id=project_id, state_id=update.state_id)
+
+    async def add_comment(self, project_id, work_item_id, comment):
+        return PlaneComment(id="comment-1", comment_html=comment.comment_html)
+
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.create_work_item", create_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.update_work_item", update_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
+
+    transport = httpx.ASGITransport(app=make_app())
+    headers = {"Authorization": "Bearer gateway-secret"}
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/v1/workflow/plane/projects/project-1/work-items",
+            headers=headers,
+            json={
+                "name": "Created from route",
+                "description_html": "<p>contains private implementation context</p>",
+            },
+        )
+        await client.patch(
+            "/v1/workflow/plane/projects/project-1/work-items/work-item-1",
+            headers=headers,
+            json={
+                "state_id": "state-started",
+                "description_html": "<p>contains update context</p>",
+            },
+        )
+        await client.post(
+            "/v1/workflow/plane/projects/project-1/work-items/work-item-1/comments",
+            headers=headers,
+            json={"comment_html": "<p>Progress with sensitive-ish details</p>"},
+        )
+
+    audit_records = [
+        record
+        for record in caplog.records
+        if record.message == "plane workflow write audit"
+    ]
+    assert [
+        {
+            "operation": record.operation,
+            "project_id": record.project_id,
+            "work_item_id": getattr(record, "work_item_id", None),
+            "plane_item_id": getattr(record, "plane_item_id", None),
+        }
+        for record in audit_records
+    ] == [
+        {
+            "operation": "plane_work_item_create",
+            "project_id": "project-1",
+            "work_item_id": None,
+            "plane_item_id": "created-work-item",
+        },
+        {
+            "operation": "plane_work_item_update",
+            "project_id": "project-1",
+            "work_item_id": "work-item-1",
+            "plane_item_id": "work-item-1",
+        },
+        {
+            "operation": "plane_work_item_comment",
+            "project_id": "project-1",
+            "work_item_id": "work-item-1",
+            "plane_item_id": "comment-1",
+        },
+    ]
+    rendered_logs = "\n".join(record.getMessage() for record in caplog.records)
+    assert "gateway-secret" not in rendered_logs
+    assert "plane-secret" not in rendered_logs
+    assert "private implementation context" not in rendered_logs
+    assert "contains update context" not in rendered_logs
+    assert "sensitive-ish details" not in rendered_logs
+
+
+@pytest.mark.asyncio
 async def test_plane_routes_map_invalid_plane_response_to_secret_free_gateway_error(monkeypatch):
     async def list_projects(self) -> PlaneProjectsResponse:
         raise PlaneResponseError("plane returned invalid json response")

@@ -33,6 +33,24 @@ ResponseT = TypeVar("ResponseT")
 logger = logging.getLogger(__name__)
 
 
+def _audit_plane_write(
+    *,
+    operation: str,
+    project_id: str,
+    work_item_id: str | None = None,
+    plane_item_id: str | None = None,
+) -> None:
+    logger.info(
+        "plane workflow write audit",
+        extra={
+            "operation": operation,
+            "project_id": project_id,
+            "work_item_id": work_item_id,
+            "plane_item_id": plane_item_id,
+        },
+    )
+
+
 def _extract_plane_actor_id(payload: dict) -> str | None:
     for field_name in ("actor", "updated_by", "created_by", "owned_by"):
         actor = payload.get(field_name)
@@ -144,9 +162,15 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         project_id: str,
         work_item: PlaneWorkItemCreate,
     ) -> PlaneWorkItem:
-        return await _map_plane_errors(
+        created = await _map_plane_errors(
             lambda: plane_client().create_work_item(project_id=project_id, work_item=work_item)
         )
+        _audit_plane_write(
+            operation="plane_work_item_create",
+            project_id=project_id,
+            plane_item_id=created.id,
+        )
+        return created
 
     @router.patch("/plane/projects/{project_id}/work-items/{work_item_id}")
     async def plane_update_work_item(
@@ -154,13 +178,20 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         work_item_id: str,
         update: PlaneWorkItemUpdate,
     ) -> PlaneWorkItem:
-        return await _map_plane_errors(
+        updated = await _map_plane_errors(
             lambda: plane_client().update_work_item(
                 project_id=project_id,
                 work_item_id=work_item_id,
                 update=update,
             )
         )
+        _audit_plane_write(
+            operation="plane_work_item_update",
+            project_id=project_id,
+            work_item_id=work_item_id,
+            plane_item_id=updated.id,
+        )
+        return updated
 
     @router.post("/plane/projects/{project_id}/work-items/{work_item_id}/comments")
     async def plane_add_comment(
@@ -168,13 +199,20 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         work_item_id: str,
         comment: PlaneCommentCreate,
     ) -> PlaneComment:
-        return await _map_plane_errors(
+        created = await _map_plane_errors(
             lambda: plane_client().add_comment(
                 project_id=project_id,
                 work_item_id=work_item_id,
                 comment=comment,
             )
         )
+        _audit_plane_write(
+            operation="plane_work_item_comment",
+            project_id=project_id,
+            work_item_id=work_item_id,
+            plane_item_id=created.id,
+        )
+        return created
 
     @router.get("/plane/webhook/queue")
     async def plane_webhook_queue_status() -> PlaneWebhookQueueStatusResponse:
