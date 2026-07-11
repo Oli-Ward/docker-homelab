@@ -36,6 +36,10 @@ class GatewaySettings(BaseSettings):
         str,
         Field(min_length=1, pattern=r"^/webhook/[A-Za-z0-9._~!$&'()*+,;=:@/-]+$"),
     ] = "/webhook/jellyfin-rating-prompt"
+    n8n_plane_webhook_dispatch_path: Annotated[
+        str,
+        Field(min_length=1, pattern=r"^/webhook/[A-Za-z0-9._~!$&'()*+,;=:@/-]+$"),
+    ] = "/webhook/plane-openclaw-dispatch"
     upstream_timeout_seconds: Annotated[float, Field(gt=0)] = 5.0
 
     def plane_webhook_ignored_actor_id_set(self) -> set[str]:

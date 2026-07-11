@@ -471,6 +471,126 @@ async def test_plane_webhook_queue_status_reports_empty_missing_queue(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_plane_webhook_dispatch_forwards_pending_events_once(tmp_path, monkeypatch):
+    queue_path = tmp_path / "events.jsonl"
+    forwarded: list[dict[str, object]] = []
+
+    async def forward_plane_webhook_event(self, event: dict[str, object]) -> dict[str, object]:
+        forwarded.append(event)
+        return {"ok": True, "received": True, "correlation_id": event["correlation_id"]}
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.workflow.N8nClient.forward_plane_webhook_event",
+        forward_plane_webhook_event,
+    )
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    payloads = [
+        {
+            "event": "issue",
+            "action": "create",
+            "webhook_id": "webhook-1",
+            "data": {"id": "work-item-1"},
+        },
+        {
+            "event": "issue",
+            "action": "update",
+            "webhook_id": "webhook-1",
+            "data": {"id": "work-item-2"},
+        },
+    ]
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for index, payload in enumerate(payloads, start=1):
+            await client.post(
+                "/v1/workflow/plane/webhook",
+                headers={
+                    "X-Plane-Delivery": f"delivery-{index}",
+                    "X-Plane-Event": "issue",
+                    "X-Plane-Signature": plane_signature(payload),
+                },
+                json=payload,
+            )
+        first_dispatch = await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        second_dispatch = await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert first_dispatch.status_code == 200
+    assert first_dispatch.json() == {
+        "dispatched_count": 2,
+        "pending_count": 0,
+        "delivery_ids": ["delivery-1", "delivery-2"],
+        "failed_delivery_id": None,
+    }
+    assert second_dispatch.status_code == 200
+    assert second_dispatch.json() == {
+        "dispatched_count": 0,
+        "pending_count": 0,
+        "delivery_ids": [],
+        "failed_delivery_id": None,
+    }
+    assert [event["delivery_id"] for event in forwarded] == ["delivery-1", "delivery-2"]
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_dispatch_leaves_failed_delivery_pending_for_retry(tmp_path, monkeypatch):
+    queue_path = tmp_path / "events.jsonl"
+    attempts: list[str] = []
+
+    async def failing_then_successful_dispatch(self, event: dict[str, object]) -> dict[str, object]:
+        attempts.append(str(event["delivery_id"]))
+        if len(attempts) == 1:
+            raise httpx.ConnectError("n8n unavailable")
+        return {"ok": True, "received": True, "correlation_id": event["correlation_id"]}
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.workflow.N8nClient.forward_plane_webhook_event",
+        failing_then_successful_dispatch,
+    )
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-1"},
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+        failed_dispatch = await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        retried_dispatch = await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert failed_dispatch.status_code == 502
+    assert failed_dispatch.json() == {
+        "detail": "plane webhook dispatch failed for delivery-1",
+    }
+    assert retried_dispatch.status_code == 200
+    assert retried_dispatch.json() == {
+        "dispatched_count": 1,
+        "pending_count": 0,
+        "delivery_ids": ["delivery-1"],
+        "failed_delivery_id": None,
+    }
+    assert attempts == ["delivery-1", "delivery-1"]
+
+
+@pytest.mark.asyncio
 async def test_plane_webhook_rejects_invalid_signature():
     payload = {"event": "issue", "action": "update", "data": {"id": "work-item-1"}}
     transport = httpx.ASGITransport(app=make_app())

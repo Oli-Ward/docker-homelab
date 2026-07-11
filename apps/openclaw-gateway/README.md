@@ -34,6 +34,7 @@ GET /v1/media/ryot/probe
 POST /v1/automation/n8n/openclaw-smoke
 POST /v1/workflow/plane/webhook
 GET /v1/workflow/plane/webhook/queue
+POST /v1/workflow/plane/webhook/dispatch?limit=10
 GET /v1/workflow/plane/projects
 GET /v1/workflow/plane/projects/{project_id}/states
 GET /v1/workflow/plane/projects/{project_id}/labels
@@ -68,6 +69,7 @@ PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
 PLANE_WEBHOOK_DEDUPE_PATH=<optional sidecar path; defaults next to queue>
 PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
+N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 ```
 
 The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
@@ -119,7 +121,18 @@ Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gate
 
 It never returns raw Plane payloads, webhook signatures, or secrets. To include this in the gateway smoke script, run `CHECK_PLANE_WEBHOOK_QUEUE=1 scripts/smoke-openclaw-gateway.sh`.
 
-This endpoint is still ingress-only. Downstream OpenClaw dispatch, worker retry policy, loop prevention, and live webhook smoke testing are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
+`POST /v1/workflow/plane/webhook/dispatch?limit=10` is an authenticated dispatcher for queued Plane events. It sends pending normalized events to `N8N_PLANE_WEBHOOK_DISPATCH_PATH` and records successfully dispatched delivery IDs in a sidecar file next to the queue. If n8n times out or returns an error, the failed delivery is not marked dispatched, so the next dispatch call retries it. The endpoint returns only dispatch counts and delivery IDs:
+
+```json
+{
+  "dispatched_count": 2,
+  "pending_count": 0,
+  "delivery_ids": ["delivery-1", "delivery-2"],
+  "failed_delivery_id": null
+}
+```
+
+The actual `plane-openclaw-dispatch` n8n/OpenClaw workflow still needs to exist before live automation is complete. Live webhook smoke testing and Komodo deployment remain OPN-271 follow-ups.
 
 Example Plane work-item create request:
 
@@ -404,6 +417,7 @@ PLANE_WEBHOOK_IGNORED_ACTOR_IDS=
 N8N_WEBHOOK_BASE_URL=http://n8n:5678
 N8N_OPENCLAW_SMOKE_PATH=/webhook/openclaw-smoke
 N8N_JELLYFIN_RATING_PROMPT_PATH=/webhook/jellyfin-rating-prompt
+N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 UPSTREAM_TIMEOUT_SECONDS=15
 ```
 

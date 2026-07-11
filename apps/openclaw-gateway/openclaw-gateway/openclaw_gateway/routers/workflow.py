@@ -9,6 +9,7 @@ import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
 from openclaw_gateway.auth import require_gateway_token
+from openclaw_gateway.clients.n8n import N8nClient
 from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
 from openclaw_gateway.plane_webhooks import FilePlaneWebhookQueue, PlaneWebhookQueueError
 from openclaw_gateway.schemas.workflow import (
@@ -22,6 +23,7 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWorkItemsResponse,
     PlaneWorkItemUpdate,
     PlaneWebhookAck,
+    PlaneWebhookDispatchResponse,
     PlaneWebhookQueueStatusResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
@@ -84,6 +86,15 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             base_url=str(settings.plane_api_base_url),
             api_key=settings.plane_api_key,
             workspace_slug=settings.plane_workspace_slug,
+            timeout_seconds=settings.upstream_timeout_seconds,
+        )
+
+    def n8n_client() -> N8nClient:
+        return N8nClient(
+            base_url=str(settings.n8n_webhook_base_url),
+            smoke_path=settings.n8n_openclaw_smoke_path,
+            rating_prompt_path=settings.n8n_jellyfin_rating_prompt_path,
+            plane_dispatch_path=settings.n8n_plane_webhook_dispatch_path,
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 
@@ -178,6 +189,65 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
                 detail="plane webhook queue is unavailable",
             ) from exc
         return PlaneWebhookQueueStatusResponse(**queue_status.model_dump())
+
+    @router.post("/plane/webhook/dispatch")
+    async def plane_webhook_dispatch(
+        limit: int = Query(default=10, ge=1, le=100),
+    ) -> PlaneWebhookDispatchResponse:
+        queue = FilePlaneWebhookQueue(
+            queue_path=settings.plane_webhook_queue_path,
+            dedupe_path=settings.plane_webhook_dedupe_path,
+        )
+        try:
+            pending_events = queue.pending_events(limit=limit)
+        except PlaneWebhookQueueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook queue is unavailable",
+            ) from exc
+
+        dispatched_delivery_ids: list[str] = []
+        for event in pending_events:
+            delivery_id = event.get("delivery_id")
+            if not isinstance(delivery_id, str):
+                continue
+            try:
+                await n8n_client().forward_plane_webhook_event(event)
+                queue.mark_dispatched(delivery_id)
+            except PlaneWebhookQueueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="plane webhook queue is unavailable",
+                ) from exc
+            except httpx.TimeoutException as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                    detail=f"plane webhook dispatch timed out for {delivery_id}",
+                ) from exc
+            except httpx.HTTPStatusError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"plane webhook dispatch returned {exc.response.status_code} for {delivery_id}",
+                ) from exc
+            except httpx.HTTPError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"plane webhook dispatch failed for {delivery_id}",
+                ) from exc
+            dispatched_delivery_ids.append(delivery_id)
+
+        try:
+            remaining_pending = len(queue.pending_events(limit=101))
+        except PlaneWebhookQueueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook queue is unavailable",
+            ) from exc
+        return PlaneWebhookDispatchResponse(
+            dispatched_count=len(dispatched_delivery_ids),
+            pending_count=remaining_pending,
+            delivery_ids=dispatched_delivery_ids,
+        )
 
     return router
 

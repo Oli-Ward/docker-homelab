@@ -19,6 +19,7 @@ async def test_openclaw_smoke_posts_fixed_payload_and_parses_response():
         base_url="http://n8n:5678",
         smoke_path="/webhook/openclaw-smoke",
         rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        plane_dispatch_path="/webhook/plane-openclaw-dispatch",
         timeout_seconds=5.0,
     )
 
@@ -51,6 +52,7 @@ async def test_n8n_forward_rating_prompt_posts_minimal_payload():
         base_url="http://n8n:5678",
         smoke_path="/webhook/openclaw-smoke",
         rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        plane_dispatch_path="/webhook/plane-openclaw-dispatch",
         timeout_seconds=5.0,
     )
     event = JellyfinWatchCompletedEvent(
@@ -76,3 +78,51 @@ async def test_n8n_forward_rating_prompt_posts_minimal_payload():
     assert result.workflow == "jellyfin-rating-prompt"
     assert result.received is True
     assert result.dedupe_key == "movie-1:2026-07-01T07:10:00Z"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
+    route = respx.post("http://n8n:5678/webhook/plane-openclaw-dispatch").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "ok": True,
+                "workflow": "plane-openclaw-dispatch",
+                "received": True,
+                "correlation_id": "plane:delivery-1",
+            },
+        )
+    )
+    client = N8nClient(
+        base_url="http://n8n:5678",
+        smoke_path="/webhook/openclaw-smoke",
+        rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        plane_dispatch_path="/webhook/plane-openclaw-dispatch",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.forward_plane_webhook_event(
+        {
+            "correlation_id": "plane:delivery-1",
+            "delivery_id": "delivery-1",
+            "event": "issue",
+            "action": "update",
+            "resource_id": "work-item-1",
+            "webhook_id": "webhook-1",
+            "actor_id": "human-user-1",
+        }
+    )
+
+    assert route.called
+    assert route.calls.last.request.content == (
+        b'{"source":"plane","event":"issue","action":"update",'
+        b'"correlation_id":"plane:delivery-1","delivery_id":"delivery-1",'
+        b'"resource_id":"work-item-1","webhook_id":"webhook-1","actor_id":"human-user-1"}'
+    )
+    assert result == {
+        "ok": True,
+        "workflow": "plane-openclaw-dispatch",
+        "received": True,
+        "correlation_id": "plane:delivery-1",
+    }

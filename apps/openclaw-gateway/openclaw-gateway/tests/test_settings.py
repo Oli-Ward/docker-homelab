@@ -47,6 +47,7 @@ def test_settings_accept_valid_config():
     assert settings.plane_webhook_ignored_actor_id_set() == set()
     assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
     assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
+    assert settings.n8n_plane_webhook_dispatch_path == "/webhook/plane-openclaw-dispatch"
     assert settings.upstream_timeout_seconds == 5.0
 
 
@@ -77,6 +78,14 @@ def test_settings_reject_empty_n8n_smoke_path():
 def test_settings_reject_non_webhook_n8n_smoke_path():
     kwargs = valid_settings_kwargs()
     kwargs["n8n_openclaw_smoke_path"] = "/api/v1/workflows"
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)
+
+
+def test_settings_reject_non_webhook_plane_dispatch_path():
+    kwargs = valid_settings_kwargs()
+    kwargs["n8n_plane_webhook_dispatch_path"] = "/api/v1/workflows"
 
     with pytest.raises(ValidationError):
         GatewaySettings(**kwargs)

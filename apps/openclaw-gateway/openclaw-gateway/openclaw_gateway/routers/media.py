@@ -80,6 +80,7 @@ def build_media_router(settings: GatewaySettings) -> APIRouter:
             base_url=str(settings.n8n_webhook_base_url),
             smoke_path=settings.n8n_openclaw_smoke_path,
             rating_prompt_path=settings.n8n_jellyfin_rating_prompt_path,
+            plane_dispatch_path=settings.n8n_plane_webhook_dispatch_path,
             timeout_seconds=settings.upstream_timeout_seconds,
         )
 

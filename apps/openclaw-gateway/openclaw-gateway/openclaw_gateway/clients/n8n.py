@@ -10,11 +10,13 @@ class N8nClient:
         base_url: str,
         smoke_path: str,
         rating_prompt_path: str,
+        plane_dispatch_path: str,
         timeout_seconds: float,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._smoke_path = smoke_path
         self._rating_prompt_path = rating_prompt_path
+        self._plane_dispatch_path = plane_dispatch_path
         self._timeout = httpx.Timeout(timeout_seconds)
 
     async def openclaw_smoke(self, request_id: str) -> N8nSmokeResponse:
@@ -45,3 +47,20 @@ class N8nClient:
             response.raise_for_status()
 
         return RatingPromptForwardResponse.model_validate(response.json())
+
+    async def forward_plane_webhook_event(self, event: dict[str, object]) -> dict[str, object]:
+        payload = {
+            "source": "plane",
+            "event": event.get("event"),
+            "action": event.get("action"),
+            "correlation_id": event.get("correlation_id"),
+            "delivery_id": event.get("delivery_id"),
+            "resource_id": event.get("resource_id"),
+            "webhook_id": event.get("webhook_id"),
+            "actor_id": event.get("actor_id"),
+        }
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.post(f"{self._base_url}{self._plane_dispatch_path}", json=payload)
+            response.raise_for_status()
+
+        return response.json()

@@ -269,6 +269,12 @@ gateway service account, OpenClaw write-back automation, Codex/ChatGPT
 integration users, or n8n automation actors. Matching webhook deliveries are
 acknowledged, logged with `suppressed_reason=ignored_actor`, and not queued.
 
+Gateway dispatch to OpenClaw is a separate authenticated step. The dispatcher
+reads pending normalized events from the queue, posts them to the fixed n8n
+`N8N_PLANE_WEBHOOK_DISPATCH_PATH`, and records only successful delivery IDs as
+dispatched. Failed downstream sends remain pending and must be retried by a
+later dispatch call or scheduler run.
+
 ## Metadata Contract
 
 Every automation-visible ticket should expose or derive:

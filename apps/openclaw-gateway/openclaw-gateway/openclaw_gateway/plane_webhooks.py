@@ -31,6 +31,7 @@ class FilePlaneWebhookQueue:
         self.dedupe_path = Path(dedupe_path) if dedupe_path else self.queue_path.with_suffix(
             f"{self.queue_path.suffix}.seen"
         )
+        self.dispatched_path = self.queue_path.with_suffix(f"{self.queue_path.suffix}.dispatched")
 
     def enqueue(self, delivery_id: str, event: dict[str, Any]) -> bool:
         try:
@@ -48,6 +49,45 @@ class FilePlaneWebhookQueue:
                     dedupe_file.write(delivery_id)
                     dedupe_file.write("\n")
                 return True
+        except OSError as exc:
+            raise PlaneWebhookQueueError(str(exc)) from exc
+
+    def pending_events(self, limit: int) -> list[dict[str, object]]:
+        try:
+            with self._lock():
+                dispatched_delivery_ids = self._read_dispatched_delivery_ids()
+                events: list[dict[str, object]] = []
+                if not self.queue_path.exists():
+                    return events
+                for line in self.queue_path.read_text(encoding="utf-8").splitlines():
+                    if len(events) >= limit:
+                        break
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(event, dict):
+                        continue
+                    delivery_id = event.get("delivery_id")
+                    if not isinstance(delivery_id, str) or delivery_id in dispatched_delivery_ids:
+                        continue
+                    events.append(event)
+                return events
+        except OSError as exc:
+            raise PlaneWebhookQueueError(str(exc)) from exc
+
+    def mark_dispatched(self, delivery_id: str) -> None:
+        try:
+            with self._lock():
+                self.dispatched_path.parent.mkdir(parents=True, exist_ok=True)
+                dispatched_delivery_ids = self._read_dispatched_delivery_ids()
+                if delivery_id in dispatched_delivery_ids:
+                    return
+                with self.dispatched_path.open("a", encoding="utf-8") as dispatched_file:
+                    dispatched_file.write(delivery_id)
+                    dispatched_file.write("\n")
         except OSError as exc:
             raise PlaneWebhookQueueError(str(exc)) from exc
 
@@ -113,3 +153,12 @@ class FilePlaneWebhookQueue:
                 if isinstance(delivery_id, str):
                     delivery_ids.add(delivery_id)
         return delivery_ids
+
+    def _read_dispatched_delivery_ids(self) -> set[str]:
+        if not self.dispatched_path.exists():
+            return set()
+        return {
+            line.strip()
+            for line in self.dispatched_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }

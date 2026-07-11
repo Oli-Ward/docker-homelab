@@ -110,3 +110,10 @@ class PlaneWebhookQueueStatusResponse(BaseModel):
     malformed_count: int
     last_delivery_id: str | None = None
     last_correlation_id: str | None = None
+
+
+class PlaneWebhookDispatchResponse(BaseModel):
+    dispatched_count: int
+    pending_count: int
+    delivery_ids: list[str]
+    failed_delivery_id: str | None = None
