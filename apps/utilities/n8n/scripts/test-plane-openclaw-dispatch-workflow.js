@@ -32,6 +32,24 @@ assert.match(
   /\/opt\/n8n-scripts\/send-plane-openclaw-dispatch\.sh/,
 );
 
+const payloadBuilder = workflow.nodes.find((node) => node.name === "Build Plane Dispatch Payload");
+assert.ok(payloadBuilder, "workflow must include a payload builder node");
+const assignmentNames = payloadBuilder.parameters.assignments.assignments.map(
+  (assignment) => assignment.name,
+);
+assert.deepEqual(
+  [
+    "project_id",
+    "sequence_id",
+    "name",
+    "state_id",
+    "state_name",
+    "priority",
+    "label_names",
+  ].filter((name) => !assignmentNames.includes(name)),
+  [],
+);
+
 const response = workflow.nodes.find((node) => node.type === "n8n-nodes-base.respondToWebhook");
 assert.ok(response, "workflow must return a webhook response");
 assert.equal(response.parameters.respondWith, "json");

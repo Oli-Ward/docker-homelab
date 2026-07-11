@@ -72,6 +72,48 @@
               "type": "string"
             },
             {
+              "id": "e1affbc1-119b-4646-8d96-0607bbfc6f6a",
+              "name": "project_id",
+              "value": "={{ $json.body.project_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ca218d9c-4a9e-4263-89ec-20d77c144bf3",
+              "name": "sequence_id",
+              "value": "={{ $json.body.sequence_id }}",
+              "type": "number"
+            },
+            {
+              "id": "b28b4afb-9493-4103-8fd3-74f24c1d812e",
+              "name": "name",
+              "value": "={{ $json.body.name }}",
+              "type": "string"
+            },
+            {
+              "id": "925ad229-ee70-4a41-b337-89ad054a9fbf",
+              "name": "state_id",
+              "value": "={{ $json.body.state_id }}",
+              "type": "string"
+            },
+            {
+              "id": "4ed7618a-3ca7-45a7-a77b-c6caf3d4227f",
+              "name": "state_name",
+              "value": "={{ $json.body.state_name }}",
+              "type": "string"
+            },
+            {
+              "id": "2fd5fdb1-a688-4b56-8ad1-87bb1fca18b8",
+              "name": "priority",
+              "value": "={{ $json.body.priority }}",
+              "type": "string"
+            },
+            {
+              "id": "2cab0175-3049-49a1-bbec-1e611018de04",
+              "name": "label_names",
+              "value": "={{ $json.body.label_names || [] }}",
+              "type": "array"
+            },
+            {
               "id": "f4d8260a-0d1e-41ec-b4e1-f2a059d7d43b",
               "name": "received_at",
               "value": "={{ $json.body.received_at || new Date().toISOString() }}",

@@ -1,13 +1,8 @@
 #!/bin/sh
 set -eu
 
-OPENCLAW_SSH_HOST=${OPENCLAW_SSH_HOST:?Set OPENCLAW_SSH_HOST}
-OPENCLAW_SSH_USER=${OPENCLAW_SSH_USER:-openclaw}
-OPENCLAW_SSH_PORT=${OPENCLAW_SSH_PORT:-22}
-OPENCLAW_SSH_KEY_PATH=${OPENCLAW_SSH_KEY_PATH:-/home/node/.n8n/ssh/openclaw_lab_tunnel}
-OPENCLAW_WORKSPACE=${OPENCLAW_WORKSPACE:-/home/openclaw/.openclaw/workspace}
-OPENCLAW_PLANE_DISPATCH_COMMAND=${OPENCLAW_PLANE_DISPATCH_COMMAND:-tools/bin/openclaw-plane-n8n-dispatch}
 NODE_BIN=${NODE_BIN:-/usr/local/bin/node}
+SCRIPT_DIR=$(dirname "$0")
 
 quote() {
   printf "'%s'" "$(printf "%s" "$1" | sed "s/'/'\\\\''/g")"
@@ -15,10 +10,11 @@ quote() {
 
 input_file=$(mktemp)
 payload_file=$(mktemp)
+preview_file=$(mktemp)
 remote_payload="/tmp/opn-271-plane-dispatch-$(date +%s)-$$.json"
 
 cleanup() {
-  rm -f "$input_file" "$payload_file"
+  rm -f "$input_file" "$payload_file" "$preview_file"
 }
 trap cleanup EXIT
 
@@ -48,6 +44,26 @@ const normalized = {
 };
 fs.writeFileSync(outputPath, JSON.stringify(normalized));
 NODE
+
+"$NODE_BIN" "$SCRIPT_DIR/plane-agent-pickup-preview.js" "$payload_file" > "$preview_file"
+decision=$("$NODE_BIN" - "$preview_file" <<'NODE'
+const fs = require("fs");
+const preview = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+process.stdout.write(preview.decision || "");
+NODE
+)
+
+if [ "$decision" != "ready" ]; then
+  cat "$preview_file"
+  exit 0
+fi
+
+OPENCLAW_SSH_HOST=${OPENCLAW_SSH_HOST:?Set OPENCLAW_SSH_HOST}
+OPENCLAW_SSH_USER=${OPENCLAW_SSH_USER:-openclaw}
+OPENCLAW_SSH_PORT=${OPENCLAW_SSH_PORT:-22}
+OPENCLAW_SSH_KEY_PATH=${OPENCLAW_SSH_KEY_PATH:-/home/node/.n8n/ssh/openclaw_lab_tunnel}
+OPENCLAW_WORKSPACE=${OPENCLAW_WORKSPACE:-/home/openclaw/.openclaw/workspace}
+OPENCLAW_PLANE_DISPATCH_COMMAND=${OPENCLAW_PLANE_DISPATCH_COMMAND:-tools/bin/openclaw-plane-n8n-dispatch}
 
 ssh_opts="-i $OPENCLAW_SSH_KEY_PATH -p $OPENCLAW_SSH_PORT -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
 remote="${OPENCLAW_SSH_USER}@${OPENCLAW_SSH_HOST}"

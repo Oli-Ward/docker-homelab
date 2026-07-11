@@ -183,6 +183,11 @@ decision record. It reports `ignored` for unsupported or not-ready events,
 `ready` when the ticket has enough routing metadata. The helper is read-only:
 it does not call Plane, OpenClaw, GitHub, SSH, Docker, or live n8n APIs.
 
+The repo-managed n8n dispatch sender uses that preview as its local gate before
+SSH. `ignored` and `needs_input` events return the decision JSON without
+requiring OpenClaw SSH configuration; only `ready` events continue to the
+configured `OPENCLAW_PLANE_DISPATCH_COMMAND`.
+
 Example Plane work-item create request:
 
 ```json

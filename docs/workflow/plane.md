@@ -304,6 +304,11 @@ The helper is read-only and is not live-enabled by default. It treats only
 metadata to its output. It does not start OpenClaw/Codex, write to Plane, call
 GitHub, SSH anywhere, or mutate n8n state.
 
+The repo-managed n8n dispatch sender runs this preview before any OpenClaw SSH
+handoff. `ignored` and `needs_input` decisions return the compact preview JSON
+locally and do not require OpenClaw SSH configuration. Only `ready` decisions
+continue to `OPENCLAW_PLANE_DISPATCH_COMMAND`.
+
 Configure `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` with Plane user IDs for the
 gateway service account, OpenClaw write-back automation, Codex/ChatGPT
 integration users, or n8n automation actors. Matching webhook deliveries are

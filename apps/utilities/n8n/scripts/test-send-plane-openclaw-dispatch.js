@@ -13,6 +13,9 @@ const fakeSshPath = path.join(tmpDir, "ssh");
 const inputPath = path.join(tmpDir, "input.json");
 const capturedPayloadPath = path.join(tmpDir, "payload.json");
 const capturedCommandPath = path.join(tmpDir, "remote-command.txt");
+const ignoredInputPath = path.join(tmpDir, "ignored-input.json");
+const needsInputPath = path.join(tmpDir, "needs-input.json");
+const unexpectedPayloadPath = path.join(tmpDir, "unexpected-payload.json");
 
 fs.writeFileSync(
   fakeSshPath,
@@ -107,6 +110,66 @@ assert.deepEqual(uploaded, {
 const remoteCommand = fs.readFileSync(capturedCommandPath, "utf8");
 assert.equal(remoteCommand.includes("cd '/srv/openclaw/workspace'"), true);
 assert.equal(remoteCommand.includes("'tools/bin/openclaw-plane-n8n-dispatch' --event-file"), true);
+
+fs.writeFileSync(
+  ignoredInputPath,
+  JSON.stringify({
+    ...input,
+    state_name: "Todo",
+  }),
+);
+
+const ignoredResult = spawnSync("sh", ["-c", "exec sh \"$1\" < \"$2\"", "sh", scriptPath, ignoredInputPath], {
+  encoding: "utf8",
+  timeout: 10000,
+  env: {
+    ...process.env,
+    PATH: `${tmpDir}:${process.env.PATH}`,
+    FAKE_SSH_PAYLOAD: unexpectedPayloadPath,
+    NODE_BIN: process.execPath,
+  },
+});
+
+assert.equal(
+  ignoredResult.status,
+  0,
+  `ignored sender exited ${ignoredResult.status} signal ${ignoredResult.signal}: ${ignoredResult.stderr || ignoredResult.error || ""}`,
+);
+assert.equal(ignoredResult.stderr, "");
+const ignoredPreview = JSON.parse(ignoredResult.stdout);
+assert.equal(ignoredPreview.decision, "ignored");
+assert.equal(ignoredPreview.reason, "not_ready_for_agent");
+assert.equal(fs.existsSync(unexpectedPayloadPath), false);
+
+fs.writeFileSync(
+  needsInputPath,
+  JSON.stringify({
+    ...input,
+    label_names: ["agent:ready"],
+  }),
+);
+
+const needsInputResult = spawnSync("sh", ["-c", "exec sh \"$1\" < \"$2\"", "sh", scriptPath, needsInputPath], {
+  encoding: "utf8",
+  timeout: 10000,
+  env: {
+    ...process.env,
+    PATH: `${tmpDir}:${process.env.PATH}`,
+    FAKE_SSH_PAYLOAD: unexpectedPayloadPath,
+    NODE_BIN: process.execPath,
+  },
+});
+
+assert.equal(
+  needsInputResult.status,
+  0,
+  `needs-input sender exited ${needsInputResult.status} signal ${needsInputResult.signal}: ${needsInputResult.stderr || needsInputResult.error || ""}`,
+);
+assert.equal(needsInputResult.stderr, "");
+const needsInputPreview = JSON.parse(needsInputResult.stdout);
+assert.equal(needsInputPreview.decision, "needs_input");
+assert.equal(needsInputPreview.reason, "missing_repo_label");
+assert.equal(fs.existsSync(unexpectedPayloadPath), false);
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log("send-plane-openclaw-dispatch tests passed");
