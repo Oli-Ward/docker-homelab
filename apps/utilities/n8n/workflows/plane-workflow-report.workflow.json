@@ -1,0 +1,91 @@
+{
+  "id": "plane-workflow-report",
+  "name": "plane-workflow-report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "7cbec1f3-b9ec-427c-b2f8-8b25519a80cb",
+      "name": "Weekly Plane Report Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "/usr/local/bin/node /opt/n8n-scripts/plane-workflow-report.js"
+      },
+      "id": "f4bb0c59-75ad-4770-8b60-d7c527b62de2",
+      "name": "Generate Plane Workflow Report",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stdout = $json.stdout || '{}';\nlet report;\ntry {\n  report = JSON.parse(stdout);\n} catch (error) {\n  report = { source: 'plane', report: 'workflow-summary', error: 'invalid-report-json' };\n}\nreturn [{ json: report }];"
+      },
+      "id": "701e75a4-87b7-4d27-910c-042e67136e05",
+      "name": "Parse Plane Workflow Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Weekly Plane Report Schedule": {
+      "main": [
+        [
+          {
+            "node": "Generate Plane Workflow Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Plane Workflow Report": {
+      "main": [
+        [
+          {
+            "node": "Parse Plane Workflow Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d7a2fb95-584e-480e-b8bf-ad258236b00f",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

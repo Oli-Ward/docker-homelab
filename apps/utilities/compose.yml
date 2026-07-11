@@ -153,6 +153,10 @@ services:
       - LINEAR_OPENCLAW_WEBHOOK_SECRET=${LINEAR_OPENCLAW_WEBHOOK_SECRET:?Set LINEAR_OPENCLAW_WEBHOOK_SECRET in Komodo or n8n runtime config}
       - OPENCLAW_LINEAR_HANDOFF_COMMAND=${OPENCLAW_LINEAR_HANDOFF_COMMAND:-tools/bin/openclaw-linear-n8n-handoff}
       - OPENCLAW_PLANE_DISPATCH_COMMAND=${OPENCLAW_PLANE_DISPATCH_COMMAND:-tools/bin/openclaw-plane-n8n-dispatch}
+      - MEDIA_GATEWAY_URL=${MEDIA_GATEWAY_URL:-http://openclaw-gateway:8080}
+      - MEDIA_GATEWAY_TOKEN=${MEDIA_GATEWAY_TOKEN:?Set MEDIA_GATEWAY_TOKEN in Komodo or n8n runtime config}
+      - PLANE_REPORT_PROJECT_ID=${PLANE_REPORT_PROJECT_ID:?Set PLANE_REPORT_PROJECT_ID in Komodo or n8n runtime config}
+      - PLANE_REPORT_LIMIT=${PLANE_REPORT_LIMIT:-100}
     volumes:
       - ${APPDATA_ROOT}/n8n:/home/node/.n8n
       - ./n8n/scripts:/opt/n8n-scripts:ro

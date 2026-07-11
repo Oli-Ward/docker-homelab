@@ -286,6 +286,20 @@ Import and enable the workflow in live n8n only after Komodo has the SSH mount,
 `OPENCLAW_PLANE_DISPATCH_COMMAND`, and real Plane automation actor IDs ready.
 The template is deliberately checked in with `active: false`.
 
+The first repo-managed read-only n8n report automation is:
+
+- workflow: `apps/utilities/n8n/workflows/plane-workflow-report.workflow.json`
+- script: `apps/utilities/n8n/scripts/plane-workflow-report.js`
+- gateway URL env: `MEDIA_GATEWAY_URL`
+- gateway token env: `MEDIA_GATEWAY_TOKEN`
+- Plane project env: `PLANE_REPORT_PROJECT_ID`
+
+This workflow is deliberately checked in with `active: false`. It calls the
+gateway's authenticated Plane read endpoints, emits a compact JSON summary, and
+does not write to Plane, Slack, GitHub, or OpenClaw. Import and enable it in
+live n8n only after the gateway token and report project ID are configured in
+Komodo or n8n runtime settings.
+
 ## Metadata Contract
 
 Every automation-visible ticket should expose or derive:

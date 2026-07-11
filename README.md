@@ -151,6 +151,8 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 
 Plane migration workflow rules are documented in [`docs/workflow/plane.md`](docs/workflow/plane.md). Use that contract for state, label, priority, and agent-pickup behavior during Linear-to-Plane migration work. The Linear-to-Plane migration dry-run and cutover runbook is [`docs/migrations/2026-07-11-opn-269-linear-to-plane-migration.md`](docs/migrations/2026-07-11-opn-269-linear-to-plane-migration.md).
 
+Repo-managed n8n Plane workflow templates live under `apps/utilities/n8n/workflows`. They are checked in disabled and still need live n8n import, runtime credentials, and Komodo deployment before they run.
+
 ---
 
 ## ⚠️ Notes
