@@ -335,6 +335,88 @@ async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path, caplog):
 
 
 @pytest.mark.asyncio
+async def test_plane_webhook_queue_status_requires_auth(tmp_path):
+    queue_path = tmp_path / "events.jsonl"
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/v1/workflow/plane/webhook/queue")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_queue_status_reports_counts(tmp_path):
+    queue_path = tmp_path / "events.jsonl"
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    payload_1 = {
+        "event": "issue",
+        "action": "create",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-1"},
+    }
+    payload_2 = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-2"},
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for delivery_id, payload in (
+            ("delivery-1", payload_1),
+            ("delivery-2", payload_2),
+            ("delivery-1", payload_1),
+        ):
+            await client.post(
+                "/v1/workflow/plane/webhook",
+                headers={
+                    "X-Plane-Delivery": delivery_id,
+                    "X-Plane-Event": "issue",
+                    "X-Plane-Signature": plane_signature(payload),
+                },
+                json=payload,
+            )
+        response = await client.get(
+            "/v1/workflow/plane/webhook/queue",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "configured": True,
+        "queue_path": str(queue_path),
+        "dedupe_path": f"{queue_path}.seen",
+        "queued_count": 2,
+        "dedupe_count": 2,
+        "malformed_count": 0,
+        "last_delivery_id": "delivery-2",
+        "last_correlation_id": "plane:delivery-2",
+    }
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_queue_status_reports_empty_missing_queue(tmp_path):
+    queue_path = tmp_path / "missing" / "events.jsonl"
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/workflow/plane/webhook/queue",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "configured": True,
+        "queue_path": str(queue_path),
+        "dedupe_path": f"{queue_path}.seen",
+        "queued_count": 0,
+        "dedupe_count": 0,
+        "malformed_count": 0,
+        "last_delivery_id": None,
+        "last_correlation_id": None,
+    }
+
+
+@pytest.mark.asyncio
 async def test_plane_webhook_rejects_invalid_signature():
     payload = {"event": "issue", "action": "update", "data": {"id": "work-item-1"}}
     transport = httpx.ASGITransport(app=make_app())

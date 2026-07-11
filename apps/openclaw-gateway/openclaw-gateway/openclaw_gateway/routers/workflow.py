@@ -22,6 +22,7 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWorkItemsResponse,
     PlaneWorkItemUpdate,
     PlaneWebhookAck,
+    PlaneWebhookQueueStatusResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
 
@@ -151,6 +152,20 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
                 comment=comment,
             )
         )
+
+    @router.get("/plane/webhook/queue")
+    async def plane_webhook_queue_status() -> PlaneWebhookQueueStatusResponse:
+        try:
+            queue_status = FilePlaneWebhookQueue(
+                queue_path=settings.plane_webhook_queue_path,
+                dedupe_path=settings.plane_webhook_dedupe_path,
+            ).status(configured=bool(settings.plane_webhook_secret))
+        except PlaneWebhookQueueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook queue is unavailable",
+            ) from exc
+        return PlaneWebhookQueueStatusResponse(**queue_status.model_dump())
 
     return router
 

@@ -14,6 +14,7 @@ def write_fake_curl(
     ryot_status: str = "200",
     n8n_status: str = "200",
     seerr_request_status: str = "200",
+    plane_queue_status: str = "200",
 ) -> Path:
     curl = tmp_path / "curl"
     log = tmp_path / "curl.log"
@@ -72,6 +73,13 @@ case "$url" in
       exit 22
     fi
     printf "{n8n_status}"
+    ;;
+  */v1/workflow/plane/webhook/queue)
+    if [[ "$has_fail" == "1" && "{plane_queue_status}" -ge 400 ]]; then
+      echo "curl: (22) The requested URL returned error: {plane_queue_status}" >&2
+      exit 22
+    fi
+    printf "{plane_queue_status}"
     ;;
   *)
     echo "unexpected URL: $url" >&2
@@ -209,3 +217,45 @@ def test_smoke_script_reports_n8n_smoke_http_status(tmp_path: Path):
 
     assert result.returncode == 1
     assert "Authenticated n8n smoke check failed with HTTP 404." in result.stderr
+
+
+def test_smoke_script_can_check_plane_webhook_queue_status(tmp_path: Path):
+    write_fake_curl(tmp_path, plane_queue_status="200")
+    env = smoke_env(tmp_path)
+    env["CHECK_PLANE_WEBHOOK_QUEUE"] = "1"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    curl_log = (tmp_path / "curl.log").read_text(encoding="utf-8")
+    assert result.returncode == 0
+    assert "OpenClaw gateway smoke test passed." in result.stdout
+    assert "/v1/workflow/plane/webhook/queue" in curl_log
+    assert "gateway-secret" not in result.stdout
+    assert "gateway-secret" not in result.stderr
+
+
+def test_smoke_script_reports_plane_webhook_queue_http_status(tmp_path: Path):
+    write_fake_curl(tmp_path, plane_queue_status="404")
+    env = smoke_env(tmp_path)
+    env["CHECK_PLANE_WEBHOOK_QUEUE"] = "1"
+
+    result = subprocess.run(
+        [str(SMOKE_SCRIPT)],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "Authenticated Plane webhook queue check failed with HTTP 404." in result.stderr
+    assert "gateway-secret" not in result.stdout
+    assert "gateway-secret" not in result.stderr

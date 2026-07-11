@@ -33,6 +33,7 @@ GET /v1/media/radarr/movies
 GET /v1/media/ryot/probe
 POST /v1/automation/n8n/openclaw-smoke
 POST /v1/workflow/plane/webhook
+GET /v1/workflow/plane/webhook/queue
 GET /v1/workflow/plane/projects
 GET /v1/workflow/plane/projects/{project_id}/states
 GET /v1/workflow/plane/projects/{project_id}/labels
@@ -97,6 +98,23 @@ The gateway validates the signature and returns a small acknowledgement:
 ```
 
 After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH` and logs the same `correlation_id` with delivery, event, action, resource, webhook, queued, and duplicate fields. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+
+`GET /v1/workflow/plane/webhook/queue` is an authenticated, read-only diagnostics endpoint for the ingress queue:
+
+```json
+{
+  "configured": true,
+  "queue_path": "/app/state/plane-webhooks/events.jsonl",
+  "dedupe_path": "/app/state/plane-webhooks/events.jsonl.seen",
+  "queued_count": 2,
+  "dedupe_count": 2,
+  "malformed_count": 0,
+  "last_delivery_id": "delivery-uuid",
+  "last_correlation_id": "plane:delivery-uuid"
+}
+```
+
+It never returns raw Plane payloads, webhook signatures, or secrets. To include this in the gateway smoke script, run `CHECK_PLANE_WEBHOOK_QUEUE=1 scripts/smoke-openclaw-gateway.sh`.
 
 This endpoint is still ingress-only. Downstream OpenClaw dispatch, worker retry policy, loop prevention, and live webhook smoke testing are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
 

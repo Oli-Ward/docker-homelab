@@ -96,3 +96,14 @@ class PlaneWebhookAck(BaseModel):
     webhook_id: str | None = None
     queued: bool
     duplicate: bool
+
+
+class PlaneWebhookQueueStatusResponse(BaseModel):
+    configured: bool
+    queue_path: str
+    dedupe_path: str
+    queued_count: int
+    dedupe_count: int
+    malformed_count: int
+    last_delivery_id: str | None = None
+    last_correlation_id: str | None = None

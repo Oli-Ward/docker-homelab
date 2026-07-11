@@ -109,4 +109,19 @@ if [[ "${CHECK_N8N_SMOKE:-0}" == "1" ]]; then
   fi
 fi
 
+if [[ "${CHECK_PLANE_WEBHOOK_QUEUE:-0}" == "1" ]]; then
+  plane_queue_status="$(
+    curl -sS \
+      -o /dev/null \
+      -w "%{http_code}" \
+      -H "Authorization: Bearer ${gateway_token}" \
+      "${gateway_url%/}/v1/workflow/plane/webhook/queue"
+  )"
+
+  if [[ "${plane_queue_status}" != "200" ]]; then
+    echo "Authenticated Plane webhook queue check failed with HTTP ${plane_queue_status}." >&2
+    exit 1
+  fi
+fi
+
 echo "OpenClaw gateway smoke test passed."

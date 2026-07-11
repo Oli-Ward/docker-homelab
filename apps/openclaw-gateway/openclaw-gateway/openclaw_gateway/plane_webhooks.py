@@ -3,6 +3,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from pydantic import BaseModel
+
 
 _queue_locks: dict[Path, Lock] = {}
 _queue_locks_guard = Lock()
@@ -10,6 +12,17 @@ _queue_locks_guard = Lock()
 
 class PlaneWebhookQueueError(Exception):
     pass
+
+
+class PlaneWebhookQueueStatus(BaseModel):
+    configured: bool
+    queue_path: str
+    dedupe_path: str
+    queued_count: int
+    dedupe_count: int
+    malformed_count: int
+    last_delivery_id: str | None = None
+    last_correlation_id: str | None = None
 
 
 class FilePlaneWebhookQueue:
@@ -35,6 +48,44 @@ class FilePlaneWebhookQueue:
                     dedupe_file.write(delivery_id)
                     dedupe_file.write("\n")
                 return True
+        except OSError as exc:
+            raise PlaneWebhookQueueError(str(exc)) from exc
+
+    def status(self, configured: bool = True) -> PlaneWebhookQueueStatus:
+        try:
+            with self._lock():
+                queued_count = 0
+                malformed_count = 0
+                last_delivery_id: str | None = None
+                last_correlation_id: str | None = None
+                if self.queue_path.exists():
+                    for line in self.queue_path.read_text(encoding="utf-8").splitlines():
+                        if not line.strip():
+                            continue
+                        try:
+                            event = json.loads(line)
+                        except json.JSONDecodeError:
+                            malformed_count += 1
+                            continue
+                        if not isinstance(event, dict):
+                            malformed_count += 1
+                            continue
+                        queued_count += 1
+                        delivery_id = event.get("delivery_id")
+                        correlation_id = event.get("correlation_id")
+                        last_delivery_id = delivery_id if isinstance(delivery_id, str) else None
+                        last_correlation_id = correlation_id if isinstance(correlation_id, str) else None
+
+                return PlaneWebhookQueueStatus(
+                    configured=configured,
+                    queue_path=str(self.queue_path),
+                    dedupe_path=str(self.dedupe_path),
+                    queued_count=queued_count,
+                    dedupe_count=len(self._read_seen_delivery_ids()),
+                    malformed_count=malformed_count,
+                    last_delivery_id=last_delivery_id,
+                    last_correlation_id=last_correlation_id,
+                )
         except OSError as exc:
             raise PlaneWebhookQueueError(str(exc)) from exc
 
