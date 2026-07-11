@@ -59,6 +59,17 @@ class N8nClient:
             "webhook_id": event.get("webhook_id"),
             "actor_id": event.get("actor_id"),
         }
+        for field_name in (
+            "project_id",
+            "sequence_id",
+            "name",
+            "state_id",
+            "state_name",
+            "priority",
+            "label_names",
+        ):
+            if field_name in event:
+                payload[field_name] = event.get(field_name)
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(f"{self._base_url}{self._plane_dispatch_path}", json=payload)
             response.raise_for_status()

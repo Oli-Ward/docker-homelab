@@ -264,6 +264,34 @@ the acknowledgement, queue record, and structured log fields. It stores only a
 normalized delivery record in the local gateway queue; raw Plane payloads and
 credential-bearing headers must not be persisted.
 
+The normalized queued/dispatch event may include this allowlisted work-item
+metadata when Plane provides it:
+
+```json
+{
+  "source": "plane",
+  "event": "issue",
+  "action": "update",
+  "correlation_id": "plane:delivery-id",
+  "delivery_id": "delivery-id",
+  "resource_id": "work-item-uuid",
+  "webhook_id": "webhook-uuid",
+  "actor_id": "plane-user-uuid",
+  "project_id": "project-uuid",
+  "sequence_id": 273,
+  "name": "Ready for agent",
+  "state_id": "state-uuid",
+  "state_name": "Ready for Agent",
+  "priority": "high",
+  "label_names": ["agent:ready", "repo:docker"]
+}
+```
+
+Do not add descriptions, comments, raw payload fragments, webhook signatures,
+API keys, or arbitrary nested Plane objects to the normalized event. Downstream
+agent pickup can use the allowlisted `state_name`, `label_names`, `project_id`,
+and sequence metadata for dry-run eligibility decisions.
+
 Configure `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` with Plane user IDs for the
 gateway service account, OpenClaw write-back automation, Codex/ChatGPT
 integration users, or n8n automation actors. Matching webhook deliveries are

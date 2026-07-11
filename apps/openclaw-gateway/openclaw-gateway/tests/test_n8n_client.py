@@ -111,6 +111,14 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
             "resource_id": "work-item-1",
             "webhook_id": "webhook-1",
             "actor_id": "human-user-1",
+            "project_id": "project-1",
+            "sequence_id": 273,
+            "name": "Ready for agent",
+            "state_id": "state-ready",
+            "state_name": "Ready for Agent",
+            "priority": "high",
+            "label_names": ["agent:ready", "repo:docker"],
+            "description_html": "<p>must not forward</p>",
         }
     )
 
@@ -118,7 +126,10 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
     assert route.calls.last.request.content == (
         b'{"source":"plane","event":"issue","action":"update",'
         b'"correlation_id":"plane:delivery-1","delivery_id":"delivery-1",'
-        b'"resource_id":"work-item-1","webhook_id":"webhook-1","actor_id":"human-user-1"}'
+        b'"resource_id":"work-item-1","webhook_id":"webhook-1","actor_id":"human-user-1",'
+        b'"project_id":"project-1","sequence_id":273,"name":"Ready for agent",'
+        b'"state_id":"state-ready","state_name":"Ready for Agent","priority":"high",'
+        b'"label_names":["agent:ready","repo:docker"]}'
     )
     assert result == {
         "ok": True,

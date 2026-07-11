@@ -160,11 +160,21 @@ The n8n sender forwards only the normalized dispatch record to OpenClaw:
   "resource_id": "work-item-uuid",
   "webhook_id": "webhook-uuid",
   "actor_id": "plane-user-uuid",
+  "project_id": "project-uuid",
+  "sequence_id": 273,
+  "name": "Ready for agent",
+  "state_id": "state-uuid",
+  "state_name": "Ready for Agent",
+  "priority": "high",
+  "label_names": ["agent:ready", "repo:docker"],
   "received_at": "2026-07-11T08:45:00.000Z"
 }
 ```
 
-It does not forward raw Plane payloads, webhook signatures, or gateway tokens.
+It does not forward raw Plane payloads, descriptions, comments, webhook
+signatures, or gateway tokens. The optional work-item fields above are the
+allowlisted metadata downstream agent-pickup logic can use to decide whether an
+event is eligible for dry-run pickup.
 
 Example Plane work-item create request:
 

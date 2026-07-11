@@ -420,7 +420,20 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "webhook_id": "webhook-1",
         "workspace_id": "workspace-1",
-        "data": {"id": "work-item-1", "name": "Ready for agent"},
+        "data": {
+            "id": "work-item-1",
+            "project_id": "project-1",
+            "sequence_id": 273,
+            "name": "Ready for agent",
+            "state_id": "state-ready",
+            "state": {"id": "state-ready", "name": "Ready for Agent"},
+            "priority": "high",
+            "labels": [
+                {"id": "label-agent", "name": "agent:ready"},
+                {"id": "label-repo", "name": "repo:docker"},
+            ],
+            "description_html": "<p>raw description must not be forwarded</p>",
+        },
     }
     transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -442,6 +455,13 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
+        "project_id": "project-1",
+        "sequence_id": 273,
+        "name": "Ready for agent",
+        "state_id": "state-ready",
+        "state_name": "Ready for Agent",
+        "priority": "high",
+        "label_names": ["agent:ready", "repo:docker"],
         "correlation_id": "plane:delivery-1",
         "queued": True,
         "duplicate": False,
@@ -453,8 +473,17 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
+        "project_id": "project-1",
+        "sequence_id": 273,
+        "name": "Ready for agent",
+        "state_id": "state-ready",
+        "state_name": "Ready for Agent",
+        "priority": "high",
+        "label_names": ["agent:ready", "repo:docker"],
         "correlation_id": "plane:delivery-1",
     }
+    assert "description_html" not in queued_event
+    assert "raw description must not be forwarded" not in json.dumps(queued_event)
     [log_record] = [
         record
         for record in caplog.records

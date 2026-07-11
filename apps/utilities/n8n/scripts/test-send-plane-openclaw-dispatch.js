@@ -44,7 +44,15 @@ const input = {
   resource_id: "work-item-1",
   webhook_id: "webhook-1",
   actor_id: "human-user-1",
+  project_id: "project-1",
+  sequence_id: 273,
+  name: "Ready for agent",
+  state_id: "state-ready",
+  state_name: "Ready for Agent",
+  priority: "high",
+  label_names: ["agent:ready", "repo:docker"],
   received_at: "2026-07-11T08:45:00.000Z",
+  description_html: "<p>must not forward</p>",
   raw_payload: { should: "not-forward" },
 };
 
@@ -86,6 +94,13 @@ assert.deepEqual(uploaded, {
   resource_id: "work-item-1",
   webhook_id: "webhook-1",
   actor_id: "human-user-1",
+  project_id: "project-1",
+  sequence_id: 273,
+  name: "Ready for agent",
+  state_id: "state-ready",
+  state_name: "Ready for Agent",
+  priority: "high",
+  label_names: ["agent:ready", "repo:docker"],
   received_at: "2026-07-11T08:45:00.000Z",
 });
 

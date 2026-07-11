@@ -65,6 +65,71 @@ def _extract_plane_actor_id(payload: dict) -> str | None:
     return None
 
 
+def _string_value(value: object) -> str | None:
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _int_value(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def _label_names(value: object) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    names: list[str] = []
+    for label in value:
+        if isinstance(label, str) and label:
+            names.append(label)
+        elif isinstance(label, dict):
+            name = _string_value(label.get("name"))
+            if name:
+                names.append(name)
+    return names or None
+
+
+def _extract_safe_work_item_metadata(data: object) -> dict[str, object]:
+    if not isinstance(data, dict):
+        return {}
+
+    metadata: dict[str, object] = {}
+    for source_key, target_key in (
+        ("project_id", "project_id"),
+        ("project", "project_id"),
+        ("name", "name"),
+        ("state_id", "state_id"),
+        ("state", "state_id"),
+        ("priority", "priority"),
+    ):
+        value = _string_value(data.get(source_key))
+        if value and target_key not in metadata:
+            metadata[target_key] = value
+
+    sequence_id = _int_value(data.get("sequence_id"))
+    if sequence_id is not None:
+        metadata["sequence_id"] = sequence_id
+
+    state = data.get("state")
+    if isinstance(state, dict):
+        state_id = _string_value(state.get("id"))
+        state_name = _string_value(state.get("name"))
+        if state_id:
+            metadata["state_id"] = state_id
+        if state_name:
+            metadata["state_name"] = state_name
+
+    names = _label_names(data.get("labels") or data.get("label_details"))
+    if names:
+        metadata["label_names"] = names
+
+    return metadata
+
+
 async def _map_plane_errors(request: Callable[[], Awaitable[ResponseT]]) -> ResponseT:
     try:
         return await request()
@@ -375,6 +440,7 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
             "resource_id": str(resource_id) if resource_id is not None else None,
             "webhook_id": payload.get("webhook_id") if isinstance(payload, dict) else None,
         }
+        normalized_event.update(_extract_safe_work_item_metadata(data))
         if actor_id:
             normalized_event["actor_id"] = actor_id
         if actor_id and actor_id in settings.plane_webhook_ignored_actor_id_set():

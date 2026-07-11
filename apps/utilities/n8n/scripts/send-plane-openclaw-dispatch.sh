@@ -37,6 +37,13 @@ const normalized = {
   resource_id: event.resource_id || "",
   webhook_id: event.webhook_id || "",
   actor_id: event.actor_id || "",
+  project_id: event.project_id || "",
+  sequence_id: Number.isInteger(event.sequence_id) ? event.sequence_id : null,
+  name: event.name || "",
+  state_id: event.state_id || "",
+  state_name: event.state_name || "",
+  priority: event.priority || "",
+  label_names: Array.isArray(event.label_names) ? event.label_names.filter((label) => typeof label === "string" && label) : [],
   received_at: event.received_at || new Date().toISOString(),
 };
 fs.writeFileSync(outputPath, JSON.stringify(normalized));
