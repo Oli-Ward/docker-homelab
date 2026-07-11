@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from openclaw_gateway.routers.automation import build_automation_router
 from openclaw_gateway.routers.media import build_media_router
-from openclaw_gateway.routers.workflow import build_workflow_router
+from openclaw_gateway.routers.workflow import build_plane_webhook_router, build_workflow_router
 from openclaw_gateway.settings import GatewaySettings, get_settings
 
 
@@ -15,6 +15,7 @@ def _include_gateway_routers(app: FastAPI, settings: GatewaySettings) -> None:
 
     app.include_router(build_media_router(settings))
     app.include_router(build_automation_router(settings))
+    app.include_router(build_plane_webhook_router(settings))
     app.include_router(build_workflow_router(settings))
     app.state.gateway_routers_included = True
 

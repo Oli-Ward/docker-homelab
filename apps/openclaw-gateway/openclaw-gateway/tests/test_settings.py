@@ -40,6 +40,7 @@ def test_settings_accept_valid_config():
     assert settings.plane_api_key == "plane-secret"
     assert settings.plane_workspace_slug == "openclaw"
     assert settings.plane_default_project_id is None
+    assert settings.plane_webhook_secret is None
     assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
     assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
     assert settings.upstream_timeout_seconds == 5.0
@@ -99,3 +100,12 @@ def test_settings_reject_empty_plane_workspace_slug():
 
     with pytest.raises(ValidationError):
         GatewaySettings(**kwargs)
+
+
+def test_settings_accept_empty_plane_webhook_secret_as_disabled():
+    kwargs = valid_settings_kwargs()
+    kwargs["plane_webhook_secret"] = ""
+
+    settings = GatewaySettings(**kwargs)
+
+    assert settings.plane_webhook_secret == ""

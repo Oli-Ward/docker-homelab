@@ -32,6 +32,7 @@ GET /v1/media/sonarr/series
 GET /v1/media/radarr/movies
 GET /v1/media/ryot/probe
 POST /v1/automation/n8n/openclaw-smoke
+POST /v1/workflow/plane/webhook
 GET /v1/workflow/plane/projects
 GET /v1/workflow/plane/projects/{project_id}/states
 GET /v1/workflow/plane/projects/{project_id}/labels
@@ -49,7 +50,7 @@ POST /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}/comments
 { "status": "ok" }
 ```
 
-All `/v1/...` endpoints require:
+All `/v1/...` endpoints except `POST /v1/workflow/plane/webhook` require:
 
 ```text
 Authorization: Bearer <token>
@@ -62,9 +63,35 @@ PLANE_API_BASE_URL=http://192.168.1.103:8085
 PLANE_API_KEY=<stored outside Git>
 PLANE_WORKSPACE_SLUG=<workspace slug>
 PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
+PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 ```
 
 The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+
+`POST /v1/workflow/plane/webhook` is the Plane webhook ingress endpoint. It does not use the gateway bearer token because Plane authenticates each delivery with `X-Plane-Signature`; configure the webhook secret in `PLANE_WEBHOOK_SECRET`.
+
+Expected Plane headers:
+
+```text
+X-Plane-Delivery: <delivery UUID>
+X-Plane-Event: <event name>
+X-Plane-Signature: <HMAC-SHA256 hex digest>
+```
+
+The gateway validates the signature and returns a small acknowledgement:
+
+```json
+{
+  "accepted": true,
+  "delivery_id": "delivery-uuid",
+  "event": "issue",
+  "action": "update",
+  "resource_id": "work-item-uuid",
+  "webhook_id": "webhook-uuid"
+}
+```
+
+This endpoint is currently ingress-only. Durable dedupe, downstream queueing, retry policy, loop prevention, and OpenClaw dispatch are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
 
 Example Plane work-item create request:
 
@@ -342,6 +369,7 @@ PLANE_API_BASE_URL=http://192.168.1.103:8085
 PLANE_API_KEY=change-me
 PLANE_WORKSPACE_SLUG=your-plane-workspace
 PLANE_DEFAULT_PROJECT_ID=
+PLANE_WEBHOOK_SECRET=change-me
 N8N_WEBHOOK_BASE_URL=http://n8n:5678
 N8N_OPENCLAW_SMOKE_PATH=/webhook/openclaw-smoke
 N8N_JELLYFIN_RATING_PROMPT_PATH=/webhook/jellyfin-rating-prompt

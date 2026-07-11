@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+
 import httpx
 import pytest
 
@@ -33,6 +37,7 @@ def make_settings() -> GatewaySettings:
         plane_api_base_url="http://plane:8085",
         plane_api_key="plane-secret",
         plane_workspace_slug="openclaw",
+        plane_webhook_secret="plane-webhook-secret",
         n8n_webhook_base_url="http://n8n:5678",
         n8n_openclaw_smoke_path="/webhook/openclaw-smoke",
         upstream_timeout_seconds=5.0,
@@ -41,6 +46,14 @@ def make_settings() -> GatewaySettings:
 
 def make_app():
     return create_app(settings=make_settings())
+
+
+def plane_signature(payload: dict) -> str:
+    return hmac.new(
+        b"plane-webhook-secret",
+        msg=json.dumps(payload).encode("utf-8"),
+        digestmod=hashlib.sha256,
+    ).hexdigest()
 
 
 @pytest.mark.asyncio
@@ -210,3 +223,111 @@ async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(mon
 
     assert response.status_code == 502
     assert response.json() == {"detail": "plane returned 429"}
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_token():
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "workspace_id": "workspace-1",
+        "data": {"id": "work-item-1", "name": "Ready for agent"},
+    }
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "accepted": True,
+        "delivery_id": "delivery-1",
+        "event": "issue",
+        "action": "update",
+        "resource_id": "work-item-1",
+        "webhook_id": "webhook-1",
+    }
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_rejects_invalid_signature():
+    payload = {"event": "issue", "action": "update", "data": {"id": "work-item-1"}}
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": "bad-signature",
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "invalid plane signature"}
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_requires_configured_secret():
+    settings = make_settings()
+    settings.plane_webhook_secret = None
+    transport = httpx.ASGITransport(app=create_app(settings=settings))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": "bad-signature",
+            },
+            json={"event": "issue", "action": "update"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "plane webhook secret is not configured"}
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_rejects_missing_delivery_header():
+    payload = {"event": "issue", "action": "update"}
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "missing plane delivery id"}
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_rejects_malformed_json():
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": "signature",
+                "Content-Type": "application/json",
+            },
+            content=b"{not-json",
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "invalid plane webhook json"}

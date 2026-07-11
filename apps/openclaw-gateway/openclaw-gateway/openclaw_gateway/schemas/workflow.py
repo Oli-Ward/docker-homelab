@@ -84,3 +84,12 @@ class PlaneComment(BaseModel):
     id: str
     comment_html: str | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
+
+
+class PlaneWebhookAck(BaseModel):
+    accepted: bool
+    delivery_id: str
+    event: str | None = None
+    action: str | None = None
+    resource_id: str | None = None
+    webhook_id: str | None = None

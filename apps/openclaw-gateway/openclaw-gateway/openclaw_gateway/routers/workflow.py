@@ -1,8 +1,11 @@
 from collections.abc import Awaitable, Callable
+import hashlib
+import hmac
+import json
 from typing import TypeVar
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
@@ -16,6 +19,7 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWorkItemCreate,
     PlaneWorkItemsResponse,
     PlaneWorkItemUpdate,
+    PlaneWebhookAck,
 )
 from openclaw_gateway.settings import GatewaySettings
 
@@ -143,6 +147,64 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
                 work_item_id=work_item_id,
                 comment=comment,
             )
+        )
+
+    return router
+
+
+def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
+    router = APIRouter(prefix="/v1/workflow")
+
+    @router.post("/plane/webhook")
+    async def plane_webhook(
+        request: Request,
+        x_plane_delivery: str | None = Header(default=None),
+        x_plane_signature: str | None = Header(default=None),
+    ) -> PlaneWebhookAck:
+        if not settings.plane_webhook_secret:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook secret is not configured",
+            )
+        if not x_plane_delivery:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="missing plane delivery id",
+            )
+        if not x_plane_signature:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="invalid plane signature",
+            )
+
+        try:
+            payload = await request.json()
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="invalid plane webhook json",
+            ) from exc
+
+        expected_signature = hmac.new(
+            settings.plane_webhook_secret.encode("utf-8"),
+            msg=json.dumps(payload).encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected_signature, x_plane_signature):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="invalid plane signature",
+            )
+
+        data = payload.get("data") if isinstance(payload, dict) else None
+        resource_id = data.get("id") if isinstance(data, dict) else None
+        return PlaneWebhookAck(
+            accepted=True,
+            delivery_id=x_plane_delivery,
+            event=payload.get("event") if isinstance(payload, dict) else None,
+            action=payload.get("action") if isinstance(payload, dict) else None,
+            resource_id=str(resource_id) if resource_id is not None else None,
+            webhook_id=payload.get("webhook_id") if isinstance(payload, dict) else None,
         )
 
     return router

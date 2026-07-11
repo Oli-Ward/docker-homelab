@@ -21,6 +21,7 @@ services:
       - PLANE_API_KEY=${PLANE_API_KEY:?Set PLANE_API_KEY in Komodo or apps/openclaw-gateway/.env}
       - PLANE_WORKSPACE_SLUG=${PLANE_WORKSPACE_SLUG:?Set PLANE_WORKSPACE_SLUG in Komodo or apps/openclaw-gateway/.env}
       - PLANE_DEFAULT_PROJECT_ID=${PLANE_DEFAULT_PROJECT_ID:-}
+      - PLANE_WEBHOOK_SECRET=${PLANE_WEBHOOK_SECRET:-}
       - N8N_WEBHOOK_BASE_URL=${N8N_WEBHOOK_BASE_URL:-http://n8n:5678}
       - N8N_OPENCLAW_SMOKE_PATH=${N8N_OPENCLAW_SMOKE_PATH:-/webhook/openclaw-smoke}
       - N8N_JELLYFIN_RATING_PROMPT_PATH=${N8N_JELLYFIN_RATING_PROMPT_PATH:-/webhook/jellyfin-rating-prompt}
