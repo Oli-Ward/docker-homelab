@@ -48,6 +48,30 @@ The Plane proxy service also joins `proxy_net`, so a later NPM cleanup can point
 https://plane.home.lab -> http://plane-proxy:80
 ```
 
+## Update Strategy
+
+Plane Commercial app images and the in-container `APP_VERSION` value are
+controlled by `APP_RELEASE_VERSION` in the Komodo environment. The default in
+`apps/plane/example.env` remains the last validated release:
+
+```text
+APP_RELEASE_VERSION=v2.6.3
+```
+
+Before changing it, confirm a VM snapshot, dedicated `${APPDATA_ROOT}/plane`
+archive, or service-aware database/object-store backup exists. Then validate
+the rendered stack without deploying:
+
+```bash
+docker compose -p plane -f apps/plane/compose.yml --env-file apps/plane/example.env config --quiet
+```
+
+Apply the version change through Komodo, not direct Docker Compose commands.
+After deployment, verify `https://plane.home.lab`, desktop login, iPhone login,
+the Plane API path used by OpenClaw, and the stateful containers listed in the
+backup section. Keep the previous `APP_RELEASE_VERSION` recorded so rollback is
+just a Komodo env revert plus redeploy if the new release fails smoke checks.
+
 ## Migration From `/opt/plane`
 
 Before moving state, confirm a VM snapshot or appdata backup exists. Plane includes PostgreSQL, Redis, RabbitMQ, and MinIO state.

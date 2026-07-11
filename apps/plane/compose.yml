@@ -1,5 +1,5 @@
 x-plane: &plane
-  APP_VERSION: v2.6.3
+  APP_VERSION: ${APP_RELEASE_VERSION:-v2.6.3}
   APP_DOMAIN: ${DOMAIN_NAME:-localhost}
   MACHINE_SIGNATURE: ${MACHINE_SIGNATURE}
   DEPLOY_PLATFORM: docker_compose
@@ -226,7 +226,7 @@ x-pi-env: &pi-env
 
 services:
   admin:
-    image: makeplane/admin-commercial:v2.6.3
+    image: makeplane/admin-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     restart: unless-stopped
     deploy:
       replicas: ${ADMIN_REPLICAS:-1}
@@ -235,7 +235,7 @@ services:
       - web
 
   web:
-    image: makeplane/web-commercial:v2.6.3
+    image: makeplane/web-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     restart: unless-stopped
     deploy:
       replicas: ${WEB_REPLICAS:-1}
@@ -244,7 +244,7 @@ services:
       - worker
 
   space:
-    image: makeplane/space-commercial:v2.6.3
+    image: makeplane/space-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     restart: unless-stopped
     deploy:
       replicas: ${SPACE_REPLICAS:-1}
@@ -253,7 +253,7 @@ services:
       - web
 
   live:
-    image: makeplane/live-commercial:v2.6.3
+    image: makeplane/live-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     environment:
       <<: [*live-env, *redis-env]
     restart: unless-stopped
@@ -264,7 +264,7 @@ services:
       - web
 
   monitor:
-    image: makeplane/monitor-commercial:v2.6.3
+    image: makeplane/monitor-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     volumes:
       - ${APPDATA_ROOT}/plane/data/monitor:/app
     environment:
@@ -274,7 +274,7 @@ services:
       replicas: 1
 
   api:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-api-ee.sh
     environment:
       <<: [*plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
@@ -289,7 +289,7 @@ services:
       - plane-redis
 
   worker:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-worker.sh
     environment:
       <<: [*plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
@@ -305,7 +305,7 @@ services:
       - plane-redis
 
   beat-worker:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-beat.sh
     environment:
       <<: [*plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
@@ -321,7 +321,7 @@ services:
       - plane-redis
 
   migrator:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-migrator.sh
     environment:
       <<: [*plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
@@ -406,7 +406,7 @@ services:
       replicas: ${IFRAMELY_REPLICAS:-1}
 
   silo:
-    image: makeplane/silo-commercial:v2.6.3
+    image: makeplane/silo-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     environment:
       <<: [*silo-env, *pg-env, *rabbitmq-env, *redis-env, *docstore-env]
     restart: unless-stopped
@@ -417,7 +417,7 @@ services:
       - plane-mq
 
   email:
-    image: makeplane/email-commercial:v2.6.3
+    image: makeplane/email-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     profiles:
       - email
     volumes:
@@ -435,7 +435,7 @@ services:
       replicas: ${EMAIL_REPLICAS:-0}
 
   automation-consumer:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-automation-consumer.sh
     environment:
       <<:
@@ -450,7 +450,7 @@ services:
       - plane-mq
 
   outbox-poller:
-    image: makeplane/backend-commercial:v2.6.3
+    image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     command: ./bin/docker-entrypoint-outbox-poller.sh
     environment:
       <<: [*outbox-poller-env, *plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
@@ -464,7 +464,7 @@ services:
       - plane-mq
 
   pi-api:
-    image: makeplane/plane-pi-commercial:v2.6.3
+    image: makeplane/plane-pi-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     profiles:
       - pi
     environment:
@@ -480,7 +480,7 @@ services:
       - monitor
 
   pi-beat:
-    image: makeplane/plane-pi-commercial:v2.6.3
+    image: makeplane/plane-pi-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     profiles:
       - pi
     command: ./bin/entrypoint-celery-beat.sh
@@ -497,7 +497,7 @@ services:
       - pi-api
 
   pi-worker:
-    image: makeplane/plane-pi-commercial:v2.6.3
+    image: makeplane/plane-pi-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     profiles:
       - pi
     command: ./bin/entrypoint-celery-worker.sh
@@ -513,7 +513,7 @@ services:
       - plane-mq
 
   pi-migrator:
-    image: makeplane/plane-pi-commercial:v2.6.3
+    image: makeplane/plane-pi-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     profiles:
       - pi
     command: ./bin/entrypoint-migrator.sh
@@ -530,7 +530,7 @@ services:
 
   # Comment this if you already have a reverse proxy running
   proxy:
-    image: makeplane/proxy-commercial:v2.6.3
+    image: makeplane/proxy-commercial:${APP_RELEASE_VERSION:-v2.6.3}
     container_name: plane-proxy
     restart: unless-stopped
     environment:
