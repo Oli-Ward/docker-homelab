@@ -17,7 +17,7 @@ MEDIA_GATEWAY_URL=http://<media-host-ip>:8088
 MEDIA_GATEWAY_TOKEN=<gateway token stored outside Git>
 ```
 
-Do not give OpenClaw Jellyfin, Seerr, Sonarr, Radarr, or Ryot API keys/admin tokens. Ryot admin access belongs in the gateway runtime only. OpenClaw should call the fixed Ryot gateway endpoint with the same gateway bearer token it already uses for Jellyfin, Seerr, Sonarr, and Radarr.
+Do not give OpenClaw Jellyfin, Seerr, Sonarr, Radarr, Ryot, or Plane API keys/admin tokens. Ryot admin access and Plane access belong in the gateway runtime only. OpenClaw should call the fixed gateway endpoints with the same gateway bearer token it already uses for Jellyfin, Seerr, Sonarr, Radarr, and Ryot.
 
 ## Endpoints
 
@@ -32,6 +32,15 @@ GET /v1/media/sonarr/series
 GET /v1/media/radarr/movies
 GET /v1/media/ryot/probe
 POST /v1/automation/n8n/openclaw-smoke
+GET /v1/workflow/plane/projects
+GET /v1/workflow/plane/projects/{project_id}/states
+GET /v1/workflow/plane/projects/{project_id}/labels
+GET /v1/workflow/plane/search?q=...
+GET /v1/workflow/plane/projects/{project_id}/work-items
+GET /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}
+POST /v1/workflow/plane/projects/{project_id}/work-items
+PATCH /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}
+POST /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}/comments
 ```
 
 `/health` is public and returns only:
@@ -44,6 +53,39 @@ All `/v1/...` endpoints require:
 
 ```text
 Authorization: Bearer <token>
+```
+
+Plane workflow endpoints call the self-hosted Plane API with a Plane API key stored only in the gateway runtime environment:
+
+```env
+PLANE_API_BASE_URL=http://192.168.1.103:8085
+PLANE_API_KEY=<stored outside Git>
+PLANE_WORKSPACE_SLUG=<workspace slug>
+PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
+```
+
+The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+
+Example Plane work-item create request:
+
+```json
+{
+  "name": "Wire Plane adapter into OpenClaw",
+  "description_html": "<p>Created by OpenClaw after confirmation.</p>",
+  "state_id": "state-uuid",
+  "priority": "medium",
+  "label_ids": ["label-uuid"],
+  "assignee_ids": [],
+  "parent_id": null
+}
+```
+
+Example Plane comment request:
+
+```json
+{
+  "comment_html": "<p>OpenClaw accepted this ticket and started work.</p>"
+}
 ```
 
 `GET /v1/media/jellyfin/library` returns a read-only, normalized Jellyfin inventory for OpenClaw availability and recommendation checks:
@@ -294,6 +336,12 @@ SONARR_URL=http://sonarr:8989
 SONARR_API_KEY=change-me
 RADARR_URL=http://radarr:7878
 RADARR_API_KEY=change-me
+RYOT_URL=http://ryot:8000
+RYOT_ADMIN_ACCESS_TOKEN=change-me
+PLANE_API_BASE_URL=http://192.168.1.103:8085
+PLANE_API_KEY=change-me
+PLANE_WORKSPACE_SLUG=your-plane-workspace
+PLANE_DEFAULT_PROJECT_ID=
 N8N_WEBHOOK_BASE_URL=http://n8n:5678
 N8N_OPENCLAW_SMOKE_PATH=/webhook/openclaw-smoke
 N8N_JELLYFIN_RATING_PROMPT_PATH=/webhook/jellyfin-rating-prompt
@@ -302,7 +350,7 @@ UPSTREAM_TIMEOUT_SECONDS=15
 
 `GATEWAY_AUTH_TOKEN` is the server-side variable consumed by this container. OpenClaw can store the same secret as `MEDIA_GATEWAY_TOKEN` on the client side, but Komodo must still provide `GATEWAY_AUTH_TOKEN` to the gateway stack.
 
-Do not commit `.env` or real API keys. Jellyfin, Seerr, Sonarr, and Radarr API keys and any n8n webhook secrets must stay on the media host in Komodo or the local deployment environment.
+Do not commit `.env` or real API keys. Jellyfin, Seerr, Sonarr, Radarr, Ryot, and Plane API keys and any n8n webhook secrets must stay on the media host in Komodo or the local deployment environment.
 
 ## n8n Smoke Workflow
 

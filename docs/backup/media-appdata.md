@@ -41,6 +41,7 @@ Included stack env files when present:
 Excluded in this first pass:
 
 - Paperless app state and exports; use OPN-155.
+- Plane app state under `${APPDATA_ROOT}/plane`; it includes PostgreSQL, RabbitMQ, Redis, MinIO, monitor state, Caddy state, and app logs and is covered by the dedicated Plane backup/restore lane in `apps/plane/README.md`.
 - Authentik state and PostgreSQL; handle as a dedicated high-risk restore lane.
 - Komodo Mongo state; existing Komodo backup wiring remains separate.
 - Bulk media tracker exports; Ryot database state is included, but user-level exports should still be tested after the service is deployed.

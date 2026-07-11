@@ -66,6 +66,7 @@ Services (Sonarr, Radarr, etc.)
 * Glances – System metrics
 * Speedtest Tracker – Network monitoring
 * File Browser – File access
+* Plane – Issue tracking and project workflow ([stack](apps/plane))
 
 ---
 
@@ -90,6 +91,7 @@ Examples:
 * `mediastarr.home.lab`
 * `n8n.home.lab`
 * `maintainerr.home.lab`
+* `plane.home.lab`
 
 ---
 
@@ -158,6 +160,7 @@ Manual encrypted appdata/config backups are documented in [`docs/backup/media-ap
 * Glances runs in `host` mode → accessed via host IP
 * Mediastarr is exposed via `https://mediastarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth.
 * Seekarr is exposed via `https://seekarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth; configure Arr instances in the web UI with internal URLs before enabling schedules.
+* Plane is exposed via `https://plane.home.lab` through Nginx Proxy Manager and uses Plane-native login; do not add Authentik proxy auth in front of the Plane app unless mobile login and API flows are revalidated. Mutable Plane state belongs under `${APPDATA_ROOT}/plane`.
 * Recyclarr is an internal scheduled/CLI service only; do not expose it through Nginx Proxy Manager or Authentik.
 
 ---

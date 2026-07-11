@@ -205,6 +205,12 @@
         description: Workflow Automation
         siteMonitor: http://n8n:5678
 
+    - Plane:
+        icon: mdi-airplane
+        href: https://plane.home.lab
+        description: Issue Tracker
+        siteMonitor: https://plane.home.lab
+
     - Komodo:
         icon: komodo.png
         href: https://komodo.home.lab

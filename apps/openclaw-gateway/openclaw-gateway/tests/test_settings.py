@@ -17,6 +17,9 @@ def valid_settings_kwargs() -> dict[str, str | float]:
         "radarr_api_key": "radarr-secret",
         "ryot_url": "http://ryot:8000",
         "ryot_admin_access_token": "ryot-secret",
+        "plane_api_base_url": "http://192.168.1.103:8085",
+        "plane_api_key": "plane-secret",
+        "plane_workspace_slug": "openclaw",
         "n8n_webhook_base_url": "http://n8n:5678",
         "n8n_openclaw_smoke_path": "/webhook/openclaw-smoke",
         "upstream_timeout_seconds": 5.0,
@@ -33,6 +36,10 @@ def test_settings_accept_valid_config():
     assert str(settings.radarr_url) == "http://radarr:7878/"
     assert str(settings.ryot_url) == "http://ryot:8000/"
     assert settings.ryot_admin_access_token == "ryot-secret"
+    assert str(settings.plane_api_base_url) == "http://192.168.1.103:8085/"
+    assert settings.plane_api_key == "plane-secret"
+    assert settings.plane_workspace_slug == "openclaw"
+    assert settings.plane_default_project_id is None
     assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
     assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
     assert settings.upstream_timeout_seconds == 5.0
@@ -73,6 +80,22 @@ def test_settings_reject_non_webhook_n8n_smoke_path():
 def test_settings_reject_empty_ryot_admin_access_token():
     kwargs = valid_settings_kwargs()
     kwargs["ryot_admin_access_token"] = ""
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)
+
+
+def test_settings_reject_empty_plane_api_key():
+    kwargs = valid_settings_kwargs()
+    kwargs["plane_api_key"] = ""
+
+    with pytest.raises(ValidationError):
+        GatewaySettings(**kwargs)
+
+
+def test_settings_reject_empty_plane_workspace_slug():
+    kwargs = valid_settings_kwargs()
+    kwargs["plane_workspace_slug"] = ""
 
     with pytest.raises(ValidationError):
         GatewaySettings(**kwargs)

@@ -19,6 +19,10 @@ class GatewaySettings(BaseSettings):
     radarr_api_key: Annotated[str, Field(min_length=1)]
     ryot_url: AnyHttpUrl
     ryot_admin_access_token: Annotated[str, Field(min_length=1)]
+    plane_api_base_url: AnyHttpUrl
+    plane_api_key: Annotated[str, Field(min_length=1)]
+    plane_workspace_slug: Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
+    plane_default_project_id: str | None = None
     n8n_webhook_base_url: AnyHttpUrl
     n8n_openclaw_smoke_path: Annotated[
         str,
