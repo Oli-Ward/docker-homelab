@@ -326,6 +326,11 @@ Requires migration/cutover window:
 
 ## Dry-Run Validation Set
 
+Use the OPN-269 migration runbook at
+`docs/migrations/2026-07-11-opn-269-linear-to-plane-migration.md` as the
+operator checklist for export scope, dry-run import, verification, discrepancy
+review, cutover, rollback, and post-cutover validation.
+
 Before broad import, validate this workflow against representative tickets:
 
 - Umbrella epic with child tickets: OPN-264.

@@ -149,7 +149,7 @@ Homepage is the deliberate exception. Its selected safe dashboard config is repo
 
 Manual encrypted appdata/config backups are documented in [`docs/backup/media-appdata.md`](docs/backup/media-appdata.md). This is a manual-first workflow and does not replace full VM backups.
 
-Plane migration workflow rules are documented in [`docs/workflow/plane.md`](docs/workflow/plane.md). Use that contract for state, label, priority, and agent-pickup behavior during Linear-to-Plane migration work.
+Plane migration workflow rules are documented in [`docs/workflow/plane.md`](docs/workflow/plane.md). Use that contract for state, label, priority, and agent-pickup behavior during Linear-to-Plane migration work. The Linear-to-Plane migration dry-run and cutover runbook is [`docs/migrations/2026-07-11-opn-269-linear-to-plane-migration.md`](docs/migrations/2026-07-11-opn-269-linear-to-plane-migration.md).
 
 ---
 
