@@ -3,10 +3,7 @@
 
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
-const { spawnSync } = require("node:child_process");
-const path = require("node:path");
-
-const verifierPath = path.join(__dirname, "verify-linear-openclaw-pickup.js");
+const { verifyInput } = require("./verify-linear-openclaw-pickup");
 const secret = "test-linear-secret";
 
 function sign(rawBody) {
@@ -14,19 +11,7 @@ function sign(rawBody) {
 }
 
 function runVerifier(envelope, env = {}) {
-  const result = spawnSync(process.execPath, [verifierPath], {
-    input: JSON.stringify(envelope),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      LINEAR_OPENCLAW_WEBHOOK_SECRET: secret,
-      ...env,
-    },
-  });
-
-  assert.equal(result.stderr, "", "verifier must not write to stderr");
-  assert.equal(result.status, 0, `verifier exited ${result.status}: ${result.stdout}`);
-  return JSON.parse(result.stdout);
+  return verifyInput(JSON.stringify(envelope), env.LINEAR_OPENCLAW_WEBHOOK_SECRET || secret);
 }
 
 function issuePayload(overrides = {}) {

@@ -152,6 +152,7 @@ services:
       - OPENCLAW_RATING_PROMPT_DB=${OPENCLAW_RATING_PROMPT_DB:-tracking/jellyfin-rating-prompts/rating-prompts.sqlite}
       - LINEAR_OPENCLAW_WEBHOOK_SECRET=${LINEAR_OPENCLAW_WEBHOOK_SECRET:?Set LINEAR_OPENCLAW_WEBHOOK_SECRET in Komodo or n8n runtime config}
       - OPENCLAW_LINEAR_HANDOFF_COMMAND=${OPENCLAW_LINEAR_HANDOFF_COMMAND:-tools/bin/openclaw-linear-n8n-handoff}
+      - OPENCLAW_PLANE_DISPATCH_COMMAND=${OPENCLAW_PLANE_DISPATCH_COMMAND:-tools/bin/openclaw-plane-n8n-dispatch}
     volumes:
       - ${APPDATA_ROOT}/n8n:/home/node/.n8n
       - ./n8n/scripts:/opt/n8n-scripts:ro

@@ -1,0 +1,170 @@
+{
+  "id": "plane-openclaw-dispatch",
+  "name": "plane-openclaw-dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "plane-openclaw-dispatch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6454815d-f24f-4025-bda6-f7f140a8c840",
+      "name": "Plane Dispatch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -520,
+        0
+      ],
+      "webhookId": "82877679-f523-4291-b229-0cb6d72f444a"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e360a173-a656-4518-b785-e66c815a3aac",
+              "name": "source",
+              "value": "plane",
+              "type": "string"
+            },
+            {
+              "id": "0b1f791e-9b76-4ace-9262-5c54ee51e0e5",
+              "name": "event",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "e3c7b983-6d30-42a8-8529-11e4c5c64c28",
+              "name": "action",
+              "value": "={{ $json.body.action }}",
+              "type": "string"
+            },
+            {
+              "id": "ec51c8c6-c229-4fe9-8eff-47f70bb286fe",
+              "name": "correlation_id",
+              "value": "={{ $json.body.correlation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "2b4e9d37-bd82-40e1-a9cb-f2f949bd481a",
+              "name": "delivery_id",
+              "value": "={{ $json.body.delivery_id }}",
+              "type": "string"
+            },
+            {
+              "id": "8fd3b68e-24bb-4550-b179-e2ff619e57c3",
+              "name": "resource_id",
+              "value": "={{ $json.body.resource_id }}",
+              "type": "string"
+            },
+            {
+              "id": "10ef6a72-cd76-4350-a57c-20d04b3f214b",
+              "name": "webhook_id",
+              "value": "={{ $json.body.webhook_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ab9235a7-2115-43f8-9277-2aeb12f8ff86",
+              "name": "actor_id",
+              "value": "={{ $json.body.actor_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f4d8260a-0d1e-41ec-b4e1-f2a059d7d43b",
+              "name": "received_at",
+              "value": "={{ $json.body.received_at || new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8cdabffa-f0eb-44e8-aa79-30ab65d16141",
+      "name": "Build Plane Dispatch Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "executeOnce": false,
+        "command": "={{ `/bin/sh /opt/n8n-scripts/send-plane-openclaw-dispatch.sh <<'OPN271_PAYLOAD'\n${JSON.stringify($json)}\nOPN271_PAYLOAD` }}"
+      },
+      "id": "161fdab6-4f11-4706-916e-0cd28fe713bd",
+      "name": "Send OpenClaw Plane Dispatch",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, workflow: 'plane-openclaw-dispatch', received: true, correlation_id: $node[\"Build Plane Dispatch Payload\"].json.correlation_id, delivery_id: $node[\"Build Plane Dispatch Payload\"].json.delivery_id } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ee1d11df-bb31-42a8-9690-08bd4ed50b56",
+      "name": "Return Plane Dispatch Ack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        260,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Plane Dispatch Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Plane Dispatch Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Plane Dispatch Payload": {
+      "main": [
+        [
+          {
+            "node": "Send OpenClaw Plane Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send OpenClaw Plane Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Return Plane Dispatch Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "74ef6569-8e84-4392-9c13-77420853e908",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

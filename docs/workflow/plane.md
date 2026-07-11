@@ -275,6 +275,17 @@ reads pending normalized events from the queue, posts them to the fixed n8n
 dispatched. Failed downstream sends remain pending and must be retried by a
 later dispatch call or scheduler run.
 
+The repo-managed n8n dispatch template is:
+
+- workflow: `apps/utilities/n8n/workflows/plane-openclaw-dispatch.workflow.json`
+- webhook path: `/webhook/plane-openclaw-dispatch`
+- sender: `apps/utilities/n8n/scripts/send-plane-openclaw-dispatch.sh`
+- default OpenClaw command: `tools/bin/openclaw-plane-n8n-dispatch`
+
+Import and enable the workflow in live n8n only after Komodo has the SSH mount,
+`OPENCLAW_PLANE_DISPATCH_COMMAND`, and real Plane automation actor IDs ready.
+The template is deliberately checked in with `active: false`.
+
 ## Metadata Contract
 
 Every automation-visible ticket should expose or derive:

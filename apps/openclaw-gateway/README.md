@@ -132,7 +132,25 @@ It never returns raw Plane payloads, webhook signatures, or secrets. To include 
 }
 ```
 
-The actual `plane-openclaw-dispatch` n8n/OpenClaw workflow still needs to exist before live automation is complete. Live webhook smoke testing and Komodo deployment remain OPN-271 follow-ups.
+The repo-managed n8n workflow template lives at `apps/utilities/n8n/workflows/plane-openclaw-dispatch.workflow.json` and calls `apps/utilities/n8n/scripts/send-plane-openclaw-dispatch.sh`. Live automation still requires importing/enabling that workflow in n8n, confirming the `/opt/n8n-scripts` mount from the utilities stack, configuring the OpenClaw SSH environment and `OPENCLAW_PLANE_DISPATCH_COMMAND`, and then smoke testing with a disabled/test Plane webhook before Komodo deployment.
+
+The n8n sender forwards only the normalized dispatch record to OpenClaw:
+
+```json
+{
+  "source": "plane",
+  "event": "issue",
+  "action": "update",
+  "correlation_id": "plane:delivery-uuid",
+  "delivery_id": "delivery-uuid",
+  "resource_id": "work-item-uuid",
+  "webhook_id": "webhook-uuid",
+  "actor_id": "plane-user-uuid",
+  "received_at": "2026-07-11T08:45:00.000Z"
+}
+```
+
+It does not forward raw Plane payloads, webhook signatures, or gateway tokens.
 
 Example Plane work-item create request:
 

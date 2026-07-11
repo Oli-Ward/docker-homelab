@@ -2,8 +2,14 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const fs = require("node:fs/promises");
 
 function readStdin() {
+  const inputPath = process.argv[2];
+  if (inputPath) {
+    return fs.readFile(inputPath, "utf8");
+  }
+
   return new Promise((resolve, reject) => {
     let input = "";
     process.stdin.setEncoding("utf8");
@@ -121,17 +127,20 @@ function normalizeIssue(payload, headers) {
 
 async function main() {
   const secret = process.env.LINEAR_OPENCLAW_WEBHOOK_SECRET || "";
+  const input = await readStdin();
+  writeResult(verifyInput(input, secret));
+}
+
+function verifyInput(input, secret) {
   if (!secret) {
-    writeResult({ status: "rejected", reason: "missing-webhook-secret" });
-    return;
+    return { status: "rejected", reason: "missing-webhook-secret" };
   }
 
   let envelope;
   try {
-    envelope = JSON.parse(await readStdin());
+    envelope = JSON.parse(input);
   } catch {
-    writeResult({ status: "rejected", reason: "invalid-envelope" });
-    return;
+    return { status: "rejected", reason: "invalid-envelope" };
   }
 
   let rawBody = typeof envelope.rawBody === "string" ? envelope.rawBody : "";
@@ -143,28 +152,29 @@ async function main() {
     }
   }
   if (!rawBody) {
-    writeResult({ status: "rejected", reason: "missing-raw-body" });
-    return;
+    return { status: "rejected", reason: "missing-raw-body" };
   }
 
   const signature = String(headerValue(envelope.headers, "linear-signature") || "");
   const expectedSignature = hmacHex(secret, rawBody);
   if (!timingSafeEqualHex(signature, expectedSignature)) {
-    writeResult({ status: "rejected", reason: "invalid-signature" });
-    return;
+    return { status: "rejected", reason: "invalid-signature" };
   }
 
   let payload;
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    writeResult({ status: "rejected", reason: "invalid-json" });
-    return;
+    return { status: "rejected", reason: "invalid-json" };
   }
 
-  writeResult(normalizeIssue(payload, envelope.headers || {}));
+  return normalizeIssue(payload, envelope.headers || {});
 }
 
-main().catch(() => {
-  writeResult({ status: "rejected", reason: "verifier-error" });
-});
+if (require.main === module) {
+  main().catch(() => {
+    writeResult({ status: "rejected", reason: "verifier-error" });
+  });
+}
+
+module.exports = { verifyInput };

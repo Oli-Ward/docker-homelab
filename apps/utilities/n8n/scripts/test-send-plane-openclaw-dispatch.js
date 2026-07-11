@@ -7,8 +7,8 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const scriptPath = path.join(__dirname, "send-linear-openclaw-pickup.sh");
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "opn234-send-test-"));
+const scriptPath = path.join(__dirname, "send-plane-openclaw-dispatch.sh");
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "opn271-plane-send-test-"));
 const fakeSshPath = path.join(tmpDir, "ssh");
 const inputPath = path.join(tmpDir, "input.json");
 const capturedPayloadPath = path.join(tmpDir, "payload.json");
@@ -36,17 +36,16 @@ esac
 );
 
 const input = {
-  event_id: "delivery-123",
+  source: "plane",
+  event: "issue",
   action: "update",
-  received_at: "2026-07-05T08:40:00.000Z",
-  issue: {
-    identifier: "OPN-234",
-    title: "Install n8n Linear webhook ingress for OpenClaw pickup",
-    team_name: "Openclaw",
-    state: "Todo",
-    labels: ["agent:ready", "tag:linear"],
-    url: "https://linear.app/alex-lawson/issue/OPN-234/install-n8n-linear-webhook-ingress-for-openclaw-pickup",
-  },
+  correlation_id: "plane:delivery-1",
+  delivery_id: "delivery-1",
+  resource_id: "work-item-1",
+  webhook_id: "webhook-1",
+  actor_id: "human-user-1",
+  received_at: "2026-07-11T08:45:00.000Z",
+  raw_payload: { should: "not-forward" },
 };
 
 fs.writeFileSync(inputPath, JSON.stringify(input));
@@ -64,32 +63,35 @@ const result = spawnSync("sh", ["-c", "exec sh \"$1\" < \"$2\"", "sh", scriptPat
     OPENCLAW_SSH_PORT: "22",
     OPENCLAW_SSH_KEY_PATH: "/tmp/fake-key",
     OPENCLAW_WORKSPACE: "/srv/openclaw/workspace",
-    OPENCLAW_LINEAR_HANDOFF_COMMAND: "tools/bin/openclaw-linear-n8n-handoff",
+    OPENCLAW_PLANE_DISPATCH_COMMAND: "tools/bin/openclaw-plane-n8n-dispatch",
     NODE_BIN: process.execPath,
   },
 });
 
-assert.equal(result.status, 0, `sender exited ${result.status}: ${result.stderr}`);
+assert.equal(
+  result.status,
+  0,
+  `sender exited ${result.status} signal ${result.signal}: ${result.stderr || result.error || ""} tmp ${tmpDir}`,
+);
 assert.equal(result.stderr, "");
 assert.match(result.stdout, /"status":"accepted"/);
 
 const uploaded = JSON.parse(fs.readFileSync(capturedPayloadPath, "utf8"));
 assert.deepEqual(uploaded, {
-  event_id: "delivery-123",
-  identifier: "OPN-234",
-  title: "Install n8n Linear webhook ingress for OpenClaw pickup",
+  source: "plane",
+  event: "issue",
   action: "update",
-  team: "Openclaw",
-  status: "Todo",
-  status_type: "",
-  labels: ["agent:ready", "tag:linear"],
-  url: "https://linear.app/alex-lawson/issue/OPN-234/install-n8n-linear-webhook-ingress-for-openclaw-pickup",
-  received_at: "2026-07-05T08:40:00.000Z",
+  correlation_id: "plane:delivery-1",
+  delivery_id: "delivery-1",
+  resource_id: "work-item-1",
+  webhook_id: "webhook-1",
+  actor_id: "human-user-1",
+  received_at: "2026-07-11T08:45:00.000Z",
 });
 
 const remoteCommand = fs.readFileSync(capturedCommandPath, "utf8");
 assert.equal(remoteCommand.includes("cd '/srv/openclaw/workspace'"), true);
-assert.equal(remoteCommand.includes("'tools/bin/openclaw-linear-n8n-handoff' --event-file"), true);
+assert.equal(remoteCommand.includes("'tools/bin/openclaw-plane-n8n-dispatch' --event-file"), true);
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
-console.log("send-linear-openclaw-pickup tests passed");
+console.log("send-plane-openclaw-dispatch tests passed");
