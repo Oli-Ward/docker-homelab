@@ -21,31 +21,33 @@ from openclaw_gateway.schemas.workflow import (
 from openclaw_gateway.settings import GatewaySettings
 
 
-def make_settings() -> GatewaySettings:
-    return GatewaySettings(
-        gateway_auth_token="gateway-secret",
-        jellyfin_url="http://jellyfin:8096",
-        jellyfin_api_key="jellyfin-secret",
-        seerr_url="http://seerr:5055",
-        seerr_api_key="seerr-secret",
-        sonarr_url="http://sonarr:8989",
-        sonarr_api_key="sonarr-secret",
-        radarr_url="http://radarr:7878",
-        radarr_api_key="radarr-secret",
-        ryot_url="http://ryot:8000",
-        ryot_admin_access_token="ryot-secret",
-        plane_api_base_url="http://plane:8085",
-        plane_api_key="plane-secret",
-        plane_workspace_slug="openclaw",
-        plane_webhook_secret="plane-webhook-secret",
-        n8n_webhook_base_url="http://n8n:5678",
-        n8n_openclaw_smoke_path="/webhook/openclaw-smoke",
-        upstream_timeout_seconds=5.0,
-    )
+def make_settings(**overrides) -> GatewaySettings:
+    values = {
+        "gateway_auth_token": "gateway-secret",
+        "jellyfin_url": "http://jellyfin:8096",
+        "jellyfin_api_key": "jellyfin-secret",
+        "seerr_url": "http://seerr:5055",
+        "seerr_api_key": "seerr-secret",
+        "sonarr_url": "http://sonarr:8989",
+        "sonarr_api_key": "sonarr-secret",
+        "radarr_url": "http://radarr:7878",
+        "radarr_api_key": "radarr-secret",
+        "ryot_url": "http://ryot:8000",
+        "ryot_admin_access_token": "ryot-secret",
+        "plane_api_base_url": "http://plane:8085",
+        "plane_api_key": "plane-secret",
+        "plane_workspace_slug": "openclaw",
+        "plane_webhook_secret": "plane-webhook-secret",
+        "n8n_webhook_base_url": "http://n8n:5678",
+        "n8n_openclaw_smoke_path": "/webhook/openclaw-smoke",
+        "upstream_timeout_seconds": 5.0,
+    }
+    values.update(overrides)
+    return GatewaySettings(**values)
 
 
-def make_app():
-    return create_app(settings=make_settings())
+def make_app(**overrides):
+    return create_app(settings=make_settings(**overrides))
 
 
 def plane_signature(payload: dict) -> str:
@@ -226,7 +228,8 @@ async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(mon
 
 
 @pytest.mark.asyncio
-async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_token():
+async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_token(tmp_path):
+    queue_path = tmp_path / "plane-webhooks" / "events.jsonl"
     payload = {
         "event": "issue",
         "action": "update",
@@ -234,7 +237,7 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "workspace_id": "workspace-1",
         "data": {"id": "work-item-1", "name": "Ready for agent"},
     }
-    transport = httpx.ASGITransport(app=make_app())
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
             "/v1/workflow/plane/webhook",
@@ -254,7 +257,56 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
+        "queued": True,
+        "duplicate": False,
     }
+    [queued_event] = [json.loads(line) for line in queue_path.read_text().splitlines()]
+    assert queued_event == {
+        "delivery_id": "delivery-1",
+        "event": "issue",
+        "action": "update",
+        "resource_id": "work-item-1",
+        "webhook_id": "webhook-1",
+    }
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path):
+    queue_path = tmp_path / "events.jsonl"
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-1"},
+    }
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        first = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+        duplicate = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+
+    assert first.status_code == 200
+    assert first.json()["queued"] is True
+    assert first.json()["duplicate"] is False
+    assert duplicate.status_code == 200
+    assert duplicate.json()["queued"] is False
+    assert duplicate.json()["duplicate"] is True
+    assert len(queue_path.read_text().splitlines()) == 1
 
 
 @pytest.mark.asyncio

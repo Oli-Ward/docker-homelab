@@ -41,6 +41,8 @@ def test_settings_accept_valid_config():
     assert settings.plane_workspace_slug == "openclaw"
     assert settings.plane_default_project_id is None
     assert settings.plane_webhook_secret is None
+    assert settings.plane_webhook_queue_path == "/app/state/plane-webhooks/events.jsonl"
+    assert settings.plane_webhook_dedupe_path is None
     assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
     assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
     assert settings.upstream_timeout_seconds == 5.0

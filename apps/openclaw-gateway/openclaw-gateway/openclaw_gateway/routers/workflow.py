@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, s
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
+from openclaw_gateway.plane_webhooks import FilePlaneWebhookQueue, PlaneWebhookQueueError
 from openclaw_gateway.schemas.workflow import (
     PlaneComment,
     PlaneCommentCreate,
@@ -198,13 +199,29 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
 
         data = payload.get("data") if isinstance(payload, dict) else None
         resource_id = data.get("id") if isinstance(data, dict) else None
+        normalized_event = {
+            "delivery_id": x_plane_delivery,
+            "event": payload.get("event") if isinstance(payload, dict) else None,
+            "action": payload.get("action") if isinstance(payload, dict) else None,
+            "resource_id": str(resource_id) if resource_id is not None else None,
+            "webhook_id": payload.get("webhook_id") if isinstance(payload, dict) else None,
+        }
+        try:
+            queued = FilePlaneWebhookQueue(
+                queue_path=settings.plane_webhook_queue_path,
+                dedupe_path=settings.plane_webhook_dedupe_path,
+            ).enqueue(delivery_id=x_plane_delivery, event=normalized_event)
+        except PlaneWebhookQueueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook queue is unavailable",
+            ) from exc
+
         return PlaneWebhookAck(
             accepted=True,
-            delivery_id=x_plane_delivery,
-            event=payload.get("event") if isinstance(payload, dict) else None,
-            action=payload.get("action") if isinstance(payload, dict) else None,
-            resource_id=str(resource_id) if resource_id is not None else None,
-            webhook_id=payload.get("webhook_id") if isinstance(payload, dict) else None,
+            duplicate=not queued,
+            queued=queued,
+            **normalized_event,
         )
 
     return router

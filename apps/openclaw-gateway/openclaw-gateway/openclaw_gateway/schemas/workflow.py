@@ -93,3 +93,5 @@ class PlaneWebhookAck(BaseModel):
     action: str | None = None
     resource_id: str | None = None
     webhook_id: str | None = None
+    queued: bool
+    duplicate: bool

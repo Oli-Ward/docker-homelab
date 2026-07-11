@@ -64,6 +64,8 @@ PLANE_API_KEY=<stored outside Git>
 PLANE_WORKSPACE_SLUG=<workspace slug>
 PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
+PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
+PLANE_WEBHOOK_DEDUPE_PATH=<optional sidecar path; defaults next to queue>
 ```
 
 The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
@@ -87,11 +89,15 @@ The gateway validates the signature and returns a small acknowledgement:
   "event": "issue",
   "action": "update",
   "resource_id": "work-item-uuid",
-  "webhook_id": "webhook-uuid"
+  "webhook_id": "webhook-uuid",
+  "queued": true,
+  "duplicate": false
 }
 ```
 
-This endpoint is currently ingress-only. Durable dedupe, downstream queueing, retry policy, loop prevention, and OpenClaw dispatch are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
+After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH`. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+
+This endpoint is still ingress-only. Downstream OpenClaw dispatch, worker retry policy, loop prevention, and live webhook smoke testing are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
 
 Example Plane work-item create request:
 
@@ -370,6 +376,8 @@ PLANE_API_KEY=change-me
 PLANE_WORKSPACE_SLUG=your-plane-workspace
 PLANE_DEFAULT_PROJECT_ID=
 PLANE_WEBHOOK_SECRET=change-me
+PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
+PLANE_WEBHOOK_DEDUPE_PATH=
 N8N_WEBHOOK_BASE_URL=http://n8n:5678
 N8N_OPENCLAW_SMOKE_PATH=/webhook/openclaw-smoke
 N8N_JELLYFIN_RATING_PROMPT_PATH=/webhook/jellyfin-rating-prompt

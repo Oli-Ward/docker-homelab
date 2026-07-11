@@ -24,6 +24,8 @@ class GatewaySettings(BaseSettings):
     plane_workspace_slug: Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
     plane_default_project_id: str | None = None
     plane_webhook_secret: str | None = None
+    plane_webhook_queue_path: str = "/app/state/plane-webhooks/events.jsonl"
+    plane_webhook_dedupe_path: str | None = None
     n8n_webhook_base_url: AnyHttpUrl
     n8n_openclaw_smoke_path: Annotated[
         str,

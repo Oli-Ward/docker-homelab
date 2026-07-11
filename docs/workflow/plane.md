@@ -258,6 +258,11 @@ Use actor identity plus a correlation ID or idempotency key. For migration-era
 compatibility, preserve source event IDs such as `linear-delivery-id` or
 `plane-webhook-id` in comments/logs where safe.
 
+The OpenClaw gateway webhook ingress uses `X-Plane-Delivery` as its first
+idempotency key. It stores only a normalized delivery record in the local
+gateway queue; raw Plane payloads and credential-bearing headers must not be
+persisted.
+
 ## Metadata Contract
 
 Every automation-visible ticket should expose or derive:
