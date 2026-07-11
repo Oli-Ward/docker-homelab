@@ -17,6 +17,9 @@ test = [
   "respx==0.22.0",
 ]
 
+[tool.setuptools.packages.find]
+include = ["openclaw_gateway*", "openclaw_plane_sdk*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

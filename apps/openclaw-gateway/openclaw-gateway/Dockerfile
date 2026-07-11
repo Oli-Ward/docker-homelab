@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY pyproject.toml /app/pyproject.toml
 COPY openclaw_gateway /app/openclaw_gateway
+COPY openclaw_plane_sdk /app/openclaw_plane_sdk
 RUN pip install --no-cache-dir "."
 
 EXPOSE 8080
