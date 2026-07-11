@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 
 import httpx
 import pytest
@@ -228,7 +229,8 @@ async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(mon
 
 
 @pytest.mark.asyncio
-async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_token(tmp_path):
+async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_token(tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
     queue_path = tmp_path / "plane-webhooks" / "events.jsonl"
     payload = {
         "event": "issue",
@@ -257,6 +259,7 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
+        "correlation_id": "plane:delivery-1",
         "queued": True,
         "duplicate": False,
     }
@@ -267,11 +270,25 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "action": "update",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
+        "correlation_id": "plane:delivery-1",
     }
+    [log_record] = [
+        record
+        for record in caplog.records
+        if record.message == "plane webhook queued"
+    ]
+    assert log_record.correlation_id == "plane:delivery-1"
+    assert log_record.plane_delivery_id == "delivery-1"
+    assert log_record.plane_event == "issue"
+    assert log_record.plane_action == "update"
+    assert log_record.plane_resource_id == "work-item-1"
+    assert log_record.plane_webhook_id == "webhook-1"
+    assert log_record.duplicate is False
 
 
 @pytest.mark.asyncio
-async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path):
+async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
     queue_path = tmp_path / "events.jsonl"
     payload = {
         "event": "issue",
@@ -307,6 +324,14 @@ async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path):
     assert duplicate.json()["queued"] is False
     assert duplicate.json()["duplicate"] is True
     assert len(queue_path.read_text().splitlines()) == 1
+    duplicate_logs = [
+        record
+        for record in caplog.records
+        if record.message == "plane webhook duplicate suppressed"
+    ]
+    assert len(duplicate_logs) == 1
+    assert duplicate_logs[0].correlation_id == "plane:delivery-1"
+    assert duplicate_logs[0].duplicate is True
 
 
 @pytest.mark.asyncio

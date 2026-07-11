@@ -88,6 +88,7 @@ class PlaneComment(BaseModel):
 
 class PlaneWebhookAck(BaseModel):
     accepted: bool
+    correlation_id: str
     delivery_id: str
     event: str | None = None
     action: str | None = None

@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 import hashlib
 import hmac
 import json
+import logging
 from typing import TypeVar
 
 import httpx
@@ -26,6 +27,7 @@ from openclaw_gateway.settings import GatewaySettings
 
 
 ResponseT = TypeVar("ResponseT")
+logger = logging.getLogger(__name__)
 
 
 async def _map_plane_errors(request: Callable[[], Awaitable[ResponseT]]) -> ResponseT:
@@ -197,9 +199,11 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
                 detail="invalid plane signature",
             )
 
+        correlation_id = f"plane:{x_plane_delivery}"
         data = payload.get("data") if isinstance(payload, dict) else None
         resource_id = data.get("id") if isinstance(data, dict) else None
         normalized_event = {
+            "correlation_id": correlation_id,
             "delivery_id": x_plane_delivery,
             "event": payload.get("event") if isinstance(payload, dict) else None,
             "action": payload.get("action") if isinstance(payload, dict) else None,
@@ -216,6 +220,20 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="plane webhook queue is unavailable",
             ) from exc
+        log_extra = {
+            "correlation_id": correlation_id,
+            "plane_delivery_id": x_plane_delivery,
+            "plane_event": normalized_event["event"],
+            "plane_action": normalized_event["action"],
+            "plane_resource_id": normalized_event["resource_id"],
+            "plane_webhook_id": normalized_event["webhook_id"],
+            "queued": queued,
+            "duplicate": not queued,
+        }
+        if queued:
+            logger.info("plane webhook queued", extra=log_extra)
+        else:
+            logger.info("plane webhook duplicate suppressed", extra=log_extra)
 
         return PlaneWebhookAck(
             accepted=True,

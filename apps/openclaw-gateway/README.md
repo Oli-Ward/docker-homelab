@@ -85,6 +85,7 @@ The gateway validates the signature and returns a small acknowledgement:
 ```json
 {
   "accepted": true,
+  "correlation_id": "plane:delivery-uuid",
   "delivery_id": "delivery-uuid",
   "event": "issue",
   "action": "update",
@@ -95,7 +96,7 @@ The gateway validates the signature and returns a small acknowledgement:
 }
 ```
 
-After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH`. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH` and logs the same `correlation_id` with delivery, event, action, resource, webhook, queued, and duplicate fields. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
 
 This endpoint is still ingress-only. Downstream OpenClaw dispatch, worker retry policy, loop prevention, and live webhook smoke testing are OPN-271 follow-ups and must be implemented before Plane webhook automation is considered complete.
 

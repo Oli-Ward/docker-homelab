@@ -259,9 +259,10 @@ compatibility, preserve source event IDs such as `linear-delivery-id` or
 `plane-webhook-id` in comments/logs where safe.
 
 The OpenClaw gateway webhook ingress uses `X-Plane-Delivery` as its first
-idempotency key. It stores only a normalized delivery record in the local
-gateway queue; raw Plane payloads and credential-bearing headers must not be
-persisted.
+idempotency key and derives `plane:<delivery-id>` as the correlation ID for
+the acknowledgement, queue record, and structured log fields. It stores only a
+normalized delivery record in the local gateway queue; raw Plane payloads and
+credential-bearing headers must not be persisted.
 
 ## Metadata Contract
 
