@@ -2,8 +2,8 @@ import httpx
 import pytest
 import respx
 
-from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
-from openclaw_gateway.schemas.workflow import (
+from openclaw_plane_sdk import PlaneApiError, PlaneClient, PlaneResponseError
+from openclaw_plane_sdk.models import (
     PlaneCommentCreate,
     PlaneWorkItemCreate,
     PlaneWorkItemUpdate,

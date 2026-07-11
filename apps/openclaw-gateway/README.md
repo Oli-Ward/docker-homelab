@@ -72,7 +72,21 @@ PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
 N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 ```
 
-The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+The gateway authenticates to Plane with `X-API-Key` through the local `openclaw_plane_sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+
+## Plane SDK
+
+The reusable Plane API surface lives in the gateway project as:
+
+```text
+openclaw_plane_sdk/
+  client.py
+  models.py
+```
+
+`openclaw_plane_sdk` owns the Plane REST paths, `X-API-Key` header handling, typed request/response models, pagination-list extraction, and stable error classes for empty responses, invalid JSON, auth errors, not found, rate limits, and server failures. The gateway imports this SDK directly in `openclaw_gateway.routers.workflow`; `openclaw_gateway.clients.plane` remains only as a compatibility re-export while consumers migrate.
+
+Future MCP, CLI, n8n helper, or OpenClaw-side Plane tooling should reuse this SDK contract instead of duplicating Plane API request construction or error handling. Keep real Plane API keys in Komodo or the consuming runtime, never in repo-managed SDK code or tests.
 
 `POST /v1/workflow/plane/webhook` is the Plane webhook ingress endpoint. It does not use the gateway bearer token because Plane authenticates each delivery with `X-Plane-Signature`; configure the webhook secret in `PLANE_WEBHOOK_SECRET`.
 

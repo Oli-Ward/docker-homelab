@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, s
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.n8n import N8nClient
-from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
 from openclaw_gateway.plane_webhooks import FilePlaneWebhookQueue, PlaneWebhookQueueError
 from openclaw_gateway.schemas.workflow import (
     PlaneComment,
@@ -27,6 +26,7 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWebhookQueueStatusResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
+from openclaw_plane_sdk import PlaneApiError, PlaneClient, PlaneResponseError
 
 
 ResponseT = TypeVar("ResponseT")
