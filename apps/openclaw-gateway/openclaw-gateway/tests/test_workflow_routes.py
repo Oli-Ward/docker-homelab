@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from openclaw_gateway.clients.plane import PlaneResponseError
+from openclaw_gateway.clients.plane import PlaneApiError, PlaneResponseError
 from openclaw_gateway.main import create_app
 from openclaw_gateway.schemas.workflow import (
     PlaneComment,
@@ -193,3 +193,20 @@ async def test_plane_routes_map_invalid_plane_response_to_secret_free_gateway_er
 
     assert response.status_code == 502
     assert response.json() == {"detail": "plane returned an invalid response"}
+
+
+@pytest.mark.asyncio
+async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(monkeypatch):
+    async def list_projects(self) -> PlaneProjectsResponse:
+        raise PlaneApiError(status_code=429, kind="rate_limited")
+
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/workflow/plane/projects",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "plane returned 429"}

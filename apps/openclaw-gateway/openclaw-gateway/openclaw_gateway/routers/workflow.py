@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from openclaw_gateway.auth import require_gateway_token
-from openclaw_gateway.clients.plane import PlaneClient, PlaneResponseError
+from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
 from openclaw_gateway.schemas.workflow import (
     PlaneComment,
     PlaneCommentCreate,
@@ -40,6 +40,11 @@ async def _map_plane_errors(request: Callable[[], Awaitable[ResponseT]]) -> Resp
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="plane request failed",
+        ) from exc
+    except PlaneApiError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"plane returned {exc.status_code}",
         ) from exc
     except PlaneResponseError as exc:
         raise HTTPException(

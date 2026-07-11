@@ -22,6 +22,13 @@ class PlaneResponseError(RuntimeError):
     pass
 
 
+class PlaneApiError(RuntimeError):
+    def __init__(self, status_code: int, kind: str) -> None:
+        self.status_code = status_code
+        self.kind = kind
+        super().__init__(f"plane returned {status_code} ({kind})")
+
+
 class PlaneClient:
     def __init__(
         self,
@@ -158,13 +165,28 @@ class PlaneClient:
             return self._response_json(response)
 
     def _response_json(self, response: httpx.Response) -> Any:
-        response.raise_for_status()
+        if response.is_error:
+            raise PlaneApiError(
+                status_code=response.status_code,
+                kind=self._error_kind(response.status_code),
+            )
         if not response.content:
             raise PlaneResponseError("plane returned empty response")
         try:
             return response.json()
         except ValueError as exc:
             raise PlaneResponseError("plane returned invalid json response") from exc
+
+    def _error_kind(self, status_code: int) -> str:
+        if status_code in {401, 403}:
+            return "auth"
+        if status_code == 404:
+            return "not_found"
+        if status_code == 429:
+            return "rate_limited"
+        if status_code >= 500:
+            return "server"
+        return "client"
 
     def _headers(self) -> dict[str, str]:
         return {"X-API-Key": self._api_key}

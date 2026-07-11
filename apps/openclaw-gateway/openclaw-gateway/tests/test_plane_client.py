@@ -2,7 +2,7 @@ import httpx
 import pytest
 import respx
 
-from openclaw_gateway.clients.plane import PlaneClient, PlaneResponseError
+from openclaw_gateway.clients.plane import PlaneApiError, PlaneClient, PlaneResponseError
 from openclaw_gateway.schemas.workflow import (
     PlaneCommentCreate,
     PlaneWorkItemCreate,
@@ -189,3 +189,31 @@ async def test_plane_client_maps_invalid_json_response_to_predictable_error():
 
     with pytest.raises(PlaneResponseError, match="invalid json"):
         await make_client().list_projects()
+
+
+@pytest.mark.asyncio
+@respx.mock
+@pytest.mark.parametrize(
+    ("status_code", "expected_kind"),
+    [
+        (401, "auth"),
+        (403, "auth"),
+        (404, "not_found"),
+        (429, "rate_limited"),
+        (500, "server"),
+    ],
+)
+async def test_plane_client_maps_status_errors_to_predictable_error(status_code, expected_kind):
+    respx.get("http://plane:8085/api/v1/workspaces/openclaw/projects/").mock(
+        return_value=httpx.Response(
+            status_code,
+            json={"detail": "upstream body must not leak plane-secret"},
+        )
+    )
+
+    with pytest.raises(PlaneApiError) as exc_info:
+        await make_client().list_projects()
+
+    assert exc_info.value.status_code == status_code
+    assert exc_info.value.kind == expected_kind
+    assert "plane-secret" not in str(exc_info.value)
