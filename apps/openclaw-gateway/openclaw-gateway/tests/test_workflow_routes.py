@@ -641,6 +641,10 @@ async def test_plane_webhook_queue_status_reports_counts(tmp_path):
                 },
                 json=payload,
             )
+        queue_path.with_suffix(f"{queue_path.suffix}.dispatched").write_text(
+            "delivery-1\n",
+            encoding="utf-8",
+        )
         response = await client.get(
             "/v1/workflow/plane/webhook/queue",
             headers={"Authorization": "Bearer gateway-secret"},
@@ -653,6 +657,8 @@ async def test_plane_webhook_queue_status_reports_counts(tmp_path):
         "dedupe_path": f"{queue_path}.seen",
         "queued_count": 2,
         "dedupe_count": 2,
+        "dispatched_count": 1,
+        "pending_count": 1,
         "malformed_count": 0,
         "last_delivery_id": "delivery-2",
         "last_correlation_id": "plane:delivery-2",
@@ -676,6 +682,8 @@ async def test_plane_webhook_queue_status_reports_empty_missing_queue(tmp_path):
         "dedupe_path": f"{queue_path}.seen",
         "queued_count": 0,
         "dedupe_count": 0,
+        "dispatched_count": 0,
+        "pending_count": 0,
         "malformed_count": 0,
         "last_delivery_id": None,
         "last_correlation_id": None,

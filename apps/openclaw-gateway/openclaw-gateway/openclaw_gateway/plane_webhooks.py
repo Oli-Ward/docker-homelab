@@ -20,6 +20,8 @@ class PlaneWebhookQueueStatus(BaseModel):
     dedupe_path: str
     queued_count: int
     dedupe_count: int
+    dispatched_count: int
+    pending_count: int
     malformed_count: int
     last_delivery_id: str | None = None
     last_correlation_id: str | None = None
@@ -95,9 +97,11 @@ class FilePlaneWebhookQueue:
         try:
             with self._lock():
                 queued_count = 0
+                pending_count = 0
                 malformed_count = 0
                 last_delivery_id: str | None = None
                 last_correlation_id: str | None = None
+                dispatched_delivery_ids = self._read_dispatched_delivery_ids()
                 if self.queue_path.exists():
                     for line in self.queue_path.read_text(encoding="utf-8").splitlines():
                         if not line.strip():
@@ -113,6 +117,8 @@ class FilePlaneWebhookQueue:
                         queued_count += 1
                         delivery_id = event.get("delivery_id")
                         correlation_id = event.get("correlation_id")
+                        if isinstance(delivery_id, str) and delivery_id not in dispatched_delivery_ids:
+                            pending_count += 1
                         last_delivery_id = delivery_id if isinstance(delivery_id, str) else None
                         last_correlation_id = correlation_id if isinstance(correlation_id, str) else None
 
@@ -122,6 +128,8 @@ class FilePlaneWebhookQueue:
                     dedupe_path=str(self.dedupe_path),
                     queued_count=queued_count,
                     dedupe_count=len(self._read_seen_delivery_ids()),
+                    dispatched_count=len(dispatched_delivery_ids),
+                    pending_count=pending_count,
                     malformed_count=malformed_count,
                     last_delivery_id=last_delivery_id,
                     last_correlation_id=last_correlation_id,

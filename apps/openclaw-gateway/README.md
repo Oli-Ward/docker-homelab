@@ -127,13 +127,18 @@ Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gate
   "dedupe_path": "/app/state/plane-webhooks/events.jsonl.seen",
   "queued_count": 2,
   "dedupe_count": 2,
+  "dispatched_count": 1,
+  "pending_count": 1,
   "malformed_count": 0,
   "last_delivery_id": "delivery-uuid",
   "last_correlation_id": "plane:delivery-uuid"
 }
 ```
 
-It never returns raw Plane payloads, webhook signatures, or secrets. To include this in the gateway smoke script, run `CHECK_PLANE_WEBHOOK_QUEUE=1 scripts/smoke-openclaw-gateway.sh`.
+It counts dispatched delivery IDs from the sidecar file but does not mark,
+dispatch, replay, delete, or mutate queue records. It never returns raw Plane
+payloads, webhook signatures, or secrets. To include this in the gateway smoke
+script, run `CHECK_PLANE_WEBHOOK_QUEUE=1 scripts/smoke-openclaw-gateway.sh`.
 
 `POST /v1/workflow/plane/webhook/dispatch?limit=10` is an authenticated dispatcher for queued Plane events. It sends pending normalized events to `N8N_PLANE_WEBHOOK_DISPATCH_PATH` and records successfully dispatched delivery IDs in a sidecar file next to the queue. If n8n times out or returns an error, the failed delivery is not marked dispatched, so the next dispatch call retries it. The endpoint returns only dispatch counts and delivery IDs:
 

@@ -47,6 +47,8 @@ class PlaneWebhookQueueStatusResponse(BaseModel):
     dedupe_path: str
     queued_count: int
     dedupe_count: int
+    dispatched_count: int
+    pending_count: int
     malformed_count: int
     last_delivery_id: str | None = None
     last_correlation_id: str | None = None

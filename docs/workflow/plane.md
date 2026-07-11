@@ -320,6 +320,11 @@ reads pending normalized events from the queue, posts them to the fixed n8n
 dispatched. Failed downstream sends remain pending and must be retried by a
 later dispatch call or scheduler run.
 
+The authenticated queue diagnostics endpoint is read-only. It reports total
+valid queued records, dedupe entries, dispatched delivery IDs, still-pending
+events, malformed records, and the last safe delivery/correlation identifiers
+without returning raw payloads or marking anything dispatched.
+
 The repo-managed n8n dispatch template is:
 
 - workflow: `apps/utilities/n8n/workflows/plane-openclaw-dispatch.workflow.json`
