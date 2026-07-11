@@ -67,6 +67,7 @@ PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
 PLANE_WEBHOOK_DEDUPE_PATH=<optional sidecar path; defaults next to queue>
+PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
 ```
 
 The gateway authenticates to Plane with `X-API-Key` and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key or raw upstream error bodies. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
@@ -97,7 +98,9 @@ The gateway validates the signature and returns a small acknowledgement:
 }
 ```
 
-After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH` and logs the same `correlation_id` with delivery, event, action, resource, webhook, queued, and duplicate fields. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH` and logs the same `correlation_id` with delivery, event, action, resource, webhook, queued, duplicate, and actor fields. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+
+Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gateway, OpenClaw write-back, Codex/ChatGPT, or n8n automation actors. Matching deliveries are acknowledged with `queued: false`, `suppressed: true`, and `suppressed_reason: "ignored_actor"` without being written to the queue. This prevents OpenClaw-originated Plane updates from looping back into new OpenClaw work.
 
 `GET /v1/workflow/plane/webhook/queue` is an authenticated, read-only diagnostics endpoint for the ingress queue:
 
@@ -397,6 +400,7 @@ PLANE_DEFAULT_PROJECT_ID=
 PLANE_WEBHOOK_SECRET=change-me
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
 PLANE_WEBHOOK_DEDUPE_PATH=
+PLANE_WEBHOOK_IGNORED_ACTOR_IDS=
 N8N_WEBHOOK_BASE_URL=http://n8n:5678
 N8N_OPENCLAW_SMOKE_PATH=/webhook/openclaw-smoke
 N8N_JELLYFIN_RATING_PROMPT_PATH=/webhook/jellyfin-rating-prompt

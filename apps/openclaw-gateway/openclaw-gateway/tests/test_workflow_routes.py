@@ -335,6 +335,60 @@ async def test_plane_webhook_suppresses_duplicate_delivery(tmp_path, caplog):
 
 
 @pytest.mark.asyncio
+async def test_plane_webhook_suppresses_ignored_actor_without_queueing(tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
+    queue_path = tmp_path / "events.jsonl"
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "actor": {"id": "automation-user-1", "display_name": "OpenClaw Bot"},
+        "data": {"id": "work-item-1"},
+    }
+    transport = httpx.ASGITransport(
+        app=make_app(
+            plane_webhook_queue_path=str(queue_path),
+            plane_webhook_ignored_actor_ids="automation-user-1,codex-user-1",
+        )
+    )
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "accepted": True,
+        "correlation_id": "plane:delivery-1",
+        "delivery_id": "delivery-1",
+        "event": "issue",
+        "action": "update",
+        "resource_id": "work-item-1",
+        "webhook_id": "webhook-1",
+        "actor_id": "automation-user-1",
+        "queued": False,
+        "duplicate": False,
+        "suppressed": True,
+        "suppressed_reason": "ignored_actor",
+    }
+    assert not queue_path.exists()
+    [suppressed_log] = [
+        record
+        for record in caplog.records
+        if record.message == "plane webhook suppressed"
+    ]
+    assert suppressed_log.correlation_id == "plane:delivery-1"
+    assert suppressed_log.plane_actor_id == "automation-user-1"
+    assert suppressed_log.suppressed_reason == "ignored_actor"
+
+
+@pytest.mark.asyncio
 async def test_plane_webhook_queue_status_requires_auth(tmp_path):
     queue_path = tmp_path / "events.jsonl"
     transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))

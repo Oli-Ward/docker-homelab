@@ -264,6 +264,11 @@ the acknowledgement, queue record, and structured log fields. It stores only a
 normalized delivery record in the local gateway queue; raw Plane payloads and
 credential-bearing headers must not be persisted.
 
+Configure `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` with Plane user IDs for the
+gateway service account, OpenClaw write-back automation, Codex/ChatGPT
+integration users, or n8n automation actors. Matching webhook deliveries are
+acknowledged, logged with `suppressed_reason=ignored_actor`, and not queued.
+
 ## Metadata Contract
 
 Every automation-visible ticket should expose or derive:

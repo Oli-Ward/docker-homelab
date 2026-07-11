@@ -43,6 +43,8 @@ def test_settings_accept_valid_config():
     assert settings.plane_webhook_secret is None
     assert settings.plane_webhook_queue_path == "/app/state/plane-webhooks/events.jsonl"
     assert settings.plane_webhook_dedupe_path is None
+    assert settings.plane_webhook_ignored_actor_ids == ""
+    assert settings.plane_webhook_ignored_actor_id_set() == set()
     assert str(settings.n8n_webhook_base_url) == "http://n8n:5678/"
     assert settings.n8n_openclaw_smoke_path == "/webhook/openclaw-smoke"
     assert settings.upstream_timeout_seconds == 5.0
@@ -111,3 +113,15 @@ def test_settings_accept_empty_plane_webhook_secret_as_disabled():
     settings = GatewaySettings(**kwargs)
 
     assert settings.plane_webhook_secret == ""
+
+
+def test_settings_parses_plane_webhook_ignored_actor_ids():
+    kwargs = valid_settings_kwargs()
+    kwargs["plane_webhook_ignored_actor_ids"] = " automation-user-1, codex-user-1,, "
+
+    settings = GatewaySettings(**kwargs)
+
+    assert settings.plane_webhook_ignored_actor_id_set() == {
+        "automation-user-1",
+        "codex-user-1",
+    }

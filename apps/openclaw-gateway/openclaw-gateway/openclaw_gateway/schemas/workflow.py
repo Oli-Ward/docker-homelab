@@ -94,8 +94,11 @@ class PlaneWebhookAck(BaseModel):
     action: str | None = None
     resource_id: str | None = None
     webhook_id: str | None = None
+    actor_id: str | None = None
     queued: bool
     duplicate: bool
+    suppressed: bool | None = None
+    suppressed_reason: str | None = None
 
 
 class PlaneWebhookQueueStatusResponse(BaseModel):

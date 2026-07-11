@@ -31,6 +31,18 @@ ResponseT = TypeVar("ResponseT")
 logger = logging.getLogger(__name__)
 
 
+def _extract_plane_actor_id(payload: dict) -> str | None:
+    for field_name in ("actor", "updated_by", "created_by", "owned_by"):
+        actor = payload.get(field_name)
+        if isinstance(actor, dict):
+            actor_id = actor.get("id")
+            if isinstance(actor_id, str) and actor_id:
+                return actor_id
+        if isinstance(actor, str) and actor:
+            return actor
+    return None
+
+
 async def _map_plane_errors(request: Callable[[], Awaitable[ResponseT]]) -> ResponseT:
     try:
         return await request()
@@ -173,7 +185,7 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
 def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
     router = APIRouter(prefix="/v1/workflow")
 
-    @router.post("/plane/webhook")
+    @router.post("/plane/webhook", response_model_exclude_none=True)
     async def plane_webhook(
         request: Request,
         x_plane_delivery: str | None = Header(default=None),
@@ -217,6 +229,7 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
         correlation_id = f"plane:{x_plane_delivery}"
         data = payload.get("data") if isinstance(payload, dict) else None
         resource_id = data.get("id") if isinstance(data, dict) else None
+        actor_id = _extract_plane_actor_id(payload) if isinstance(payload, dict) else None
         normalized_event = {
             "correlation_id": correlation_id,
             "delivery_id": x_plane_delivery,
@@ -225,6 +238,31 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
             "resource_id": str(resource_id) if resource_id is not None else None,
             "webhook_id": payload.get("webhook_id") if isinstance(payload, dict) else None,
         }
+        if actor_id:
+            normalized_event["actor_id"] = actor_id
+        if actor_id and actor_id in settings.plane_webhook_ignored_actor_id_set():
+            log_extra = {
+                "correlation_id": correlation_id,
+                "plane_delivery_id": x_plane_delivery,
+                "plane_event": normalized_event["event"],
+                "plane_action": normalized_event["action"],
+                "plane_resource_id": normalized_event["resource_id"],
+                "plane_webhook_id": normalized_event["webhook_id"],
+                "plane_actor_id": actor_id,
+                "queued": False,
+                "duplicate": False,
+                "suppressed": True,
+                "suppressed_reason": "ignored_actor",
+            }
+            logger.info("plane webhook suppressed", extra=log_extra)
+            return PlaneWebhookAck(
+                accepted=True,
+                duplicate=False,
+                queued=False,
+                suppressed=True,
+                suppressed_reason="ignored_actor",
+                **normalized_event,
+            )
         try:
             queued = FilePlaneWebhookQueue(
                 queue_path=settings.plane_webhook_queue_path,
@@ -242,8 +280,11 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
             "plane_action": normalized_event["action"],
             "plane_resource_id": normalized_event["resource_id"],
             "plane_webhook_id": normalized_event["webhook_id"],
+            "plane_actor_id": actor_id,
             "queued": queued,
             "duplicate": not queued,
+            "suppressed": False,
+            "suppressed_reason": None,
         }
         if queued:
             logger.info("plane webhook queued", extra=log_extra)
