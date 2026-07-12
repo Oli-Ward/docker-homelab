@@ -87,21 +87,48 @@ container must trust the homelab CA. Compose mounts only the public root CA
 certificate read-only; do not mount Nginx Proxy Manager private keys or generated
 certificate directories into this container.
 
-The gateway authenticates to Plane with `X-API-Key` through the local `openclaw_plane_sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key, raw upstream error bodies, or SDK `raw` payload fields. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+The gateway authenticates to Plane with `X-API-Key` through the `openclaw-plane-sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key, raw upstream error bodies, or SDK `raw` payload fields. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+
+The retained Plane REST facade is split between read and write routes:
+
+- Read: projects, project states, project labels, search, project work-item list, and single work-item read.
+- Write: create work item, update work item, and add work-item comment.
+
+All REST facade routes require the gateway bearer token. Callers such as OpenClaw, n8n helpers, CLI scripts, and future MCP tools should send `Authorization: Bearer <gateway token>` and may send `X-Request-ID` to control the response/audit correlation ID. The gateway owns Plane credentials; callers must never receive or store the Plane API key.
+
+Plane facade errors use a stable, secret-free response shape:
+
+```json
+{
+  "detail": {
+    "error_code": "plane_resource_not_found",
+    "message": "Plane resource was not found.",
+    "correlation_id": "request-uuid",
+    "retryable": false
+  }
+}
+```
+
+Stable error codes are `plane_auth_failed`, `plane_permission_denied`, `plane_resource_not_found`, `plane_conflict`, `plane_validation_failed`, `plane_rate_limited`, `plane_upstream_error`, `plane_timeout`, `plane_request_failed`, and `plane_invalid_response`. The gateway maps upstream Plane credential failures to `502` because the caller's gateway token may still be valid; caller permission failures from Plane map to `403`, not a generic upstream failure.
+
+Every successful Plane write logs `plane workflow write audit` with operation, correlation ID, project ID, work-item ID when present, and Plane item ID. Audit logs intentionally omit request bodies, bearer tokens, Plane API keys, comments, descriptions, and raw upstream payloads.
 
 ## Plane SDK
 
-The reusable Plane API surface lives in the gateway project as:
+The reusable Plane API surface lives as a standalone package:
 
 ```text
-openclaw_plane_sdk/
-  client.py
-  models.py
+packages/openclaw-plane-sdk/
+  src/openclaw_plane_sdk/
+    client.py
+    models.py
 ```
 
-`openclaw_plane_sdk` owns the Plane REST paths, `X-API-Key` header handling, typed request/response models, pagination-list extraction, and stable error classes for empty responses, invalid JSON, auth errors, not found, rate limits, and server failures. The gateway imports this SDK directly in `openclaw_gateway.routers.workflow`; `openclaw_gateway.clients.plane` remains only as a compatibility re-export while consumers migrate.
+`openclaw_plane_sdk` owns the Plane REST paths, `X-API-Key` header handling, typed request/response models, pagination-list extraction, and stable error classes for empty responses, invalid JSON, auth errors, not found, rate limits, and server failures. The gateway imports this SDK directly in `openclaw_gateway.routers.workflow`; `openclaw_gateway.clients.plane` and `openclaw_gateway.schemas.workflow` retain compatibility re-exports while consumers migrate.
 
 Future MCP, CLI, n8n helper, or OpenClaw-side Plane tooling should reuse this SDK contract instead of duplicating Plane API request construction or error handling. Keep real Plane API keys in Komodo or the consuming runtime, never in repo-managed SDK code or tests.
+
+Local verification for the facade is non-deploying: run the gateway workflow route tests, the SDK tests, and a repository search proving `openclaw_gateway.routers.workflow` does not construct direct Plane HTTP requests. After a Komodo redeploy, record the gateway image/build revision, confirm the image has `openclaw-plane-sdk` installed, run read smoke before write smoke, confirm controlled error responses include the expected correlation ID, and document rollback by reverting the gateway image or disabling write callers while leaving Plane data intact.
 
 `POST /v1/workflow/plane/webhook` is the Plane webhook ingress endpoint. It does not use the gateway bearer token because Plane authenticates each delivery with `X-Plane-Signature`; configure the webhook secret in `PLANE_WEBHOOK_SECRET`.
 

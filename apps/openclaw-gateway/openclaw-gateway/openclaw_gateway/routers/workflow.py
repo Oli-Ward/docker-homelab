@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import random
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
@@ -49,6 +50,7 @@ PLANE_OBJECT_RESPONSE_EXCLUDE = {"raw"}
 def _audit_plane_write(
     *,
     operation: str,
+    correlation_id: str,
     project_id: str,
     work_item_id: str | None = None,
     plane_item_id: str | None = None,
@@ -57,6 +59,7 @@ def _audit_plane_write(
         "plane workflow write audit",
         extra={
             "operation": operation,
+            "correlation_id": correlation_id,
             "project_id": project_id,
             "work_item_id": work_item_id,
             "plane_item_id": plane_item_id,
@@ -190,33 +193,140 @@ def _extract_safe_work_item_metadata(data: object) -> dict[str, object]:
     return metadata
 
 
-async def _map_plane_errors(request: Callable[[], Awaitable[ResponseT]]) -> ResponseT:
+def _request_correlation_id(request: Request) -> str:
+    request_id = request.headers.get("x-request-id")
+    if request_id and request_id.strip():
+        return request_id.strip()
+    return f"gateway:{uuid.uuid4()}"
+
+
+def _plane_error(
+    *,
+    status_code: int,
+    error_code: str,
+    message: str,
+    correlation_id: str,
+    retryable: bool,
+) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "error_code": error_code,
+            "message": message,
+            "correlation_id": correlation_id,
+            "retryable": retryable,
+        },
+    )
+
+
+def _plane_api_error_fields(status_code: int) -> tuple[int, str, str, bool]:
+    if status_code == status.HTTP_401_UNAUTHORIZED:
+        return (
+            status.HTTP_502_BAD_GATEWAY,
+            "plane_auth_failed",
+            "Plane authentication failed.",
+            False,
+        )
+    if status_code == status.HTTP_403_FORBIDDEN:
+        return (
+            status.HTTP_403_FORBIDDEN,
+            "plane_permission_denied",
+            "Plane permission was denied.",
+            False,
+        )
+    if status_code == status.HTTP_404_NOT_FOUND:
+        return (
+            status.HTTP_404_NOT_FOUND,
+            "plane_resource_not_found",
+            "Plane resource was not found.",
+            False,
+        )
+    if status_code == status.HTTP_409_CONFLICT:
+        return (
+            status.HTTP_409_CONFLICT,
+            "plane_conflict",
+            "Plane reported a resource conflict.",
+            False,
+        )
+    if status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+        return (
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "plane_validation_failed",
+            "Plane rejected the request.",
+            False,
+        )
+    if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        return (
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "plane_rate_limited",
+            "Plane rate limited the request.",
+            True,
+        )
+    if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+        return (
+            status.HTTP_502_BAD_GATEWAY,
+            "plane_upstream_error",
+            "Plane returned an upstream error.",
+            True,
+        )
+    return (
+        status.HTTP_502_BAD_GATEWAY,
+        "plane_request_failed",
+        "Plane request failed.",
+        False,
+    )
+
+
+async def _map_plane_errors(
+    request: Request,
+    plane_request: Callable[[], Awaitable[ResponseT]],
+) -> ResponseT:
+    correlation_id = _request_correlation_id(request)
     try:
-        return await request()
+        return await plane_request()
     except httpx.TimeoutException as exc:
-        raise HTTPException(
+        raise _plane_error(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="plane timed out",
+            error_code="plane_timeout",
+            message="Plane request timed out.",
+            correlation_id=correlation_id,
+            retryable=True,
         ) from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"plane returned {exc.response.status_code}",
+        mapped_status, error_code, message, retryable = _plane_api_error_fields(
+            exc.response.status_code
+        )
+        raise _plane_error(
+            status_code=mapped_status,
+            error_code=error_code,
+            message=message,
+            correlation_id=correlation_id,
+            retryable=retryable,
         ) from exc
     except httpx.HTTPError as exc:
-        raise HTTPException(
+        raise _plane_error(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="plane request failed",
+            error_code="plane_request_failed",
+            message="Plane request failed.",
+            correlation_id=correlation_id,
+            retryable=True,
         ) from exc
     except PlaneApiError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"plane returned {exc.status_code}",
+        mapped_status, error_code, message, retryable = _plane_api_error_fields(exc.status_code)
+        raise _plane_error(
+            status_code=mapped_status,
+            error_code=error_code,
+            message=message,
+            correlation_id=correlation_id,
+            retryable=retryable,
         ) from exc
     except PlaneResponseError as exc:
-        raise HTTPException(
+        raise _plane_error(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="plane returned an invalid response",
+            error_code="plane_invalid_response",
+            message="Plane returned an invalid response.",
+            correlation_id=correlation_id,
+            retryable=True,
         ) from exc
 
 
@@ -247,33 +357,35 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         "/plane/projects",
         response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
     )
-    async def plane_projects() -> PlaneProjectsResponse:
-        return await _map_plane_errors(plane_client().list_projects)
+    async def plane_projects(request: Request) -> PlaneProjectsResponse:
+        return await _map_plane_errors(request, plane_client().list_projects)
 
     @router.get(
         "/plane/projects/{project_id}/states",
         response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
     )
-    async def plane_states(project_id: str) -> PlaneStatesResponse:
-        return await _map_plane_errors(lambda: plane_client().list_states(project_id))
+    async def plane_states(request: Request, project_id: str) -> PlaneStatesResponse:
+        return await _map_plane_errors(request, lambda: plane_client().list_states(project_id))
 
     @router.get(
         "/plane/projects/{project_id}/labels",
         response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
     )
-    async def plane_labels(project_id: str) -> PlaneLabelsResponse:
-        return await _map_plane_errors(lambda: plane_client().list_labels(project_id))
+    async def plane_labels(request: Request, project_id: str) -> PlaneLabelsResponse:
+        return await _map_plane_errors(request, lambda: plane_client().list_labels(project_id))
 
     @router.get(
         "/plane/search",
         response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
     )
     async def plane_search(
+        request: Request,
         q: str = Query(min_length=1),
         project_id: str | None = None,
         limit: int | None = Query(default=None, ge=1, le=100),
     ) -> PlaneWorkItemsResponse:
         return await _map_plane_errors(
+            request,
             lambda: plane_client().search_work_items(
                 query=q,
                 project_id=project_id,
@@ -286,10 +398,12 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         response_model_exclude=PLANE_LIST_RESPONSE_EXCLUDE,
     )
     async def plane_project_work_items(
+        request: Request,
         project_id: str,
         limit: int | None = Query(default=None, ge=1, le=100),
     ) -> PlaneWorkItemsResponse:
         return await _map_plane_errors(
+            request,
             lambda: plane_client().list_project_work_items(project_id=project_id, limit=limit)
         )
 
@@ -297,8 +411,9 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         "/plane/projects/{project_id}/work-items/{work_item_id}",
         response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
     )
-    async def plane_work_item(project_id: str, work_item_id: str) -> PlaneWorkItem:
+    async def plane_work_item(request: Request, project_id: str, work_item_id: str) -> PlaneWorkItem:
         return await _map_plane_errors(
+            request,
             lambda: plane_client().get_work_item(project_id=project_id, work_item_id=work_item_id)
         )
 
@@ -307,14 +422,17 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
     )
     async def plane_create_work_item(
+        request: Request,
         project_id: str,
         work_item: PlaneWorkItemCreate,
     ) -> PlaneWorkItem:
         created = await _map_plane_errors(
+            request,
             lambda: plane_client().create_work_item(project_id=project_id, work_item=work_item)
         )
         _audit_plane_write(
             operation="plane_work_item_create",
+            correlation_id=_request_correlation_id(request),
             project_id=project_id,
             plane_item_id=created.id,
         )
@@ -325,11 +443,13 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
     )
     async def plane_update_work_item(
+        request: Request,
         project_id: str,
         work_item_id: str,
         update: PlaneWorkItemUpdate,
     ) -> PlaneWorkItem:
         updated = await _map_plane_errors(
+            request,
             lambda: plane_client().update_work_item(
                 project_id=project_id,
                 work_item_id=work_item_id,
@@ -338,6 +458,7 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         )
         _audit_plane_write(
             operation="plane_work_item_update",
+            correlation_id=_request_correlation_id(request),
             project_id=project_id,
             work_item_id=work_item_id,
             plane_item_id=updated.id,
@@ -349,11 +470,13 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         response_model_exclude=PLANE_OBJECT_RESPONSE_EXCLUDE,
     )
     async def plane_add_comment(
+        request: Request,
         project_id: str,
         work_item_id: str,
         comment: PlaneCommentCreate,
     ) -> PlaneComment:
         created = await _map_plane_errors(
+            request,
             lambda: plane_client().add_comment(
                 project_id=project_id,
                 work_item_id=work_item_id,
@@ -362,6 +485,7 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         )
         _audit_plane_write(
             operation="plane_work_item_comment",
+            correlation_id=_request_correlation_id(request),
             project_id=project_id,
             work_item_id=work_item_id,
             plane_item_id=created.id,

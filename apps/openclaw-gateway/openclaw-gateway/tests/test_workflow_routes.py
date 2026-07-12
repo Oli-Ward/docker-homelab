@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+from pathlib import Path
 import re
 
 import httpx
@@ -60,6 +61,23 @@ def plane_signature(payload: dict) -> str:
         msg=body,
         digestmod=hashlib.sha256,
     ).hexdigest()
+
+
+def test_plane_compatibility_re_exports_point_to_sdk_types():
+    from openclaw_gateway.clients import plane as gateway_plane
+    from openclaw_gateway.schemas import workflow as gateway_workflow
+    from openclaw_plane_sdk import PlaneClient as SdkPlaneClient
+    from openclaw_plane_sdk.models import PlaneWorkItem as SdkPlaneWorkItem
+
+    assert gateway_plane.PlaneClient is SdkPlaneClient
+    assert gateway_workflow.PlaneWorkItem is SdkPlaneWorkItem
+
+
+def test_workflow_router_delegates_plane_http_to_sdk():
+    router_source = Path("openclaw_gateway/routers/workflow.py").read_text()
+
+    assert "httpx.AsyncClient" not in router_source
+    assert "X-API-Key" not in router_source
 
 
 @pytest.mark.asyncio
@@ -215,7 +233,10 @@ async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplo
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
 
     transport = httpx.ASGITransport(app=make_app())
-    headers = {"Authorization": "Bearer gateway-secret"}
+    headers = {
+        "Authorization": "Bearer gateway-secret",
+        "X-Request-ID": "request-275-write",
+    }
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         await client.post(
             "/v1/workflow/plane/projects/project-1/work-items",
@@ -247,6 +268,7 @@ async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplo
     assert [
         {
             "operation": record.operation,
+            "correlation_id": getattr(record, "correlation_id", None),
             "project_id": record.project_id,
             "work_item_id": getattr(record, "work_item_id", None),
             "plane_item_id": getattr(record, "plane_item_id", None),
@@ -255,18 +277,21 @@ async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplo
     ] == [
         {
             "operation": "plane_work_item_create",
+            "correlation_id": "request-275-write",
             "project_id": "project-1",
             "work_item_id": None,
             "plane_item_id": "created-work-item",
         },
         {
             "operation": "plane_work_item_update",
+            "correlation_id": "request-275-write",
             "project_id": "project-1",
             "work_item_id": "work-item-1",
             "plane_item_id": "work-item-1",
         },
         {
             "operation": "plane_work_item_comment",
+            "correlation_id": "request-275-write",
             "project_id": "project-1",
             "work_item_id": "work-item-1",
             "plane_item_id": "comment-1",
@@ -381,26 +406,56 @@ async def test_plane_routes_exclude_raw_upstream_payloads(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_plane_routes_map_invalid_plane_response_to_secret_free_gateway_error(monkeypatch):
+async def test_plane_routes_map_invalid_plane_response_to_structured_gateway_error(monkeypatch):
     async def list_projects(self) -> PlaneProjectsResponse:
-        raise PlaneResponseError("plane returned invalid json response")
+        raise PlaneResponseError("plane returned invalid json response with plane-secret")
 
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
     transport = httpx.ASGITransport(app=make_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get(
             "/v1/workflow/plane/projects",
-            headers={"Authorization": "Bearer gateway-secret"},
+            headers={
+                "Authorization": "Bearer gateway-secret",
+                "X-Request-ID": "request-275",
+            },
         )
 
     assert response.status_code == 502
-    assert response.json() == {"detail": "plane returned an invalid response"}
+    assert response.json() == {
+        "detail": {
+            "error_code": "plane_invalid_response",
+            "message": "Plane returned an invalid response.",
+            "correlation_id": "request-275",
+            "retryable": True,
+        }
+    }
+    assert "plane-secret" not in json.dumps(response.json())
 
 
 @pytest.mark.asyncio
-async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(monkeypatch):
+@pytest.mark.parametrize(
+    ("status_code", "kind", "expected_status", "error_code", "retryable"),
+    [
+        (401, "auth", 502, "plane_auth_failed", False),
+        (403, "auth", 403, "plane_permission_denied", False),
+        (404, "not_found", 404, "plane_resource_not_found", False),
+        (409, "client", 409, "plane_conflict", False),
+        (422, "client", 422, "plane_validation_failed", False),
+        (429, "rate_limited", 429, "plane_rate_limited", True),
+        (500, "server", 502, "plane_upstream_error", True),
+    ],
+)
+async def test_plane_routes_map_plane_api_errors_to_structured_gateway_errors(
+    monkeypatch,
+    status_code,
+    kind,
+    expected_status,
+    error_code,
+    retryable,
+):
     async def list_projects(self) -> PlaneProjectsResponse:
-        raise PlaneApiError(status_code=429, kind="rate_limited")
+        raise PlaneApiError(status_code=status_code, kind=kind)
 
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
     transport = httpx.ASGITransport(app=make_app())
@@ -410,8 +465,63 @@ async def test_plane_routes_map_plane_api_error_to_secret_free_gateway_error(mon
             headers={"Authorization": "Bearer gateway-secret"},
         )
 
-    assert response.status_code == 502
-    assert response.json() == {"detail": "plane returned 429"}
+    body = response.json()["detail"]
+    assert response.status_code == expected_status
+    assert body["error_code"] == error_code
+    assert body["retryable"] is retryable
+    assert body["correlation_id"]
+    assert "plane-secret" not in json.dumps(response.json())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("exception", "expected_status", "error_code", "message"),
+    [
+        (
+            httpx.TimeoutException("plane-secret timeout"),
+            504,
+            "plane_timeout",
+            "Plane request timed out.",
+        ),
+        (
+            httpx.ConnectError("plane-secret connection failed"),
+            502,
+            "plane_request_failed",
+            "Plane request failed.",
+        ),
+    ],
+)
+async def test_plane_routes_map_transport_errors_to_structured_gateway_errors(
+    monkeypatch,
+    exception,
+    expected_status,
+    error_code,
+    message,
+):
+    async def list_projects(self) -> PlaneProjectsResponse:
+        raise exception
+
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
+    transport = httpx.ASGITransport(app=make_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get(
+            "/v1/workflow/plane/projects",
+            headers={
+                "Authorization": "Bearer gateway-secret",
+                "X-Request-ID": "request-transport",
+            },
+        )
+
+    assert response.status_code == expected_status
+    assert response.json() == {
+        "detail": {
+            "error_code": error_code,
+            "message": message,
+            "correlation_id": "request-transport",
+            "retryable": True,
+        }
+    }
+    assert "plane-secret" not in json.dumps(response.json())
 
 
 @pytest.mark.asyncio
