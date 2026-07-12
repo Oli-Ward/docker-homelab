@@ -1,6 +1,6 @@
 # OPN-270 Plane SDK Extraction Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract `openclaw_plane_sdk` from the gateway project into a standalone installable Python package at `packages/openclaw-plane-sdk/`, consumed by the gateway as a local uv path dependency.
 
@@ -19,14 +19,14 @@
 - Move: `apps/openclaw-gateway/openclaw-gateway/openclaw_plane_sdk/models.py` → `packages/openclaw-plane-sdk/src/openclaw_plane_sdk/models.py`
 - Move: `apps/openclaw-gateway/openclaw-gateway/tests/test_plane_client.py` → `packages/openclaw-plane-sdk/tests/test_plane_client.py`
 
-- [ ] **Step 1: Create SDK directory structure**
+- [x] **Step 1: Create SDK directory structure**
 
 ```bash
 mkdir -p packages/openclaw-plane-sdk/src/openclaw_plane_sdk
 mkdir -p packages/openclaw-plane-sdk/tests
 ```
 
-- [ ] **Step 2: Write `packages/openclaw-plane-sdk/pyproject.toml`**
+- [x] **Step 2: Write `packages/openclaw-plane-sdk/pyproject.toml`**
 
 ```toml
 [project]
@@ -54,7 +54,7 @@ include = ["openclaw_plane_sdk*"]
 testpaths = ["tests"]
 ```
 
-- [ ] **Step 3: Move SDK source files with `git mv`**
+- [x] **Step 3: Move SDK source files with `git mv`**
 
 ```bash
 git mv apps/openclaw-gateway/openclaw-gateway/openclaw_plane_sdk/__init__.py \
@@ -73,14 +73,14 @@ The source files are moved; the directory still exists because of `__pycache__/`
 rm -rf apps/openclaw-gateway/openclaw-gateway/openclaw_plane_sdk
 ```
 
-- [ ] **Step 4: Move the SDK test file with `git mv`**
+- [x] **Step 4: Move the SDK test file with `git mv`**
 
 ```bash
 git mv apps/openclaw-gateway/openclaw-gateway/tests/test_plane_client.py \
        packages/openclaw-plane-sdk/tests/test_plane_client.py
 ```
 
-- [ ] **Step 5: Verify the module is not importable before installation**
+- [x] **Step 5: Verify the module is not importable before installation**
 
 Confirms the move landed correctly and the src layout requires explicit install:
 
@@ -91,7 +91,7 @@ python -c "from openclaw_plane_sdk import PlaneClient" 2>&1
 
 Expected: `ModuleNotFoundError: No module named 'openclaw_plane_sdk'`
 
-- [ ] **Step 6: Install SDK and run its tests**
+- [x] **Step 6: Install SDK and run its tests**
 
 ```bash
 cd packages/openclaw-plane-sdk
@@ -110,7 +110,7 @@ pytest -q
 deactivate
 ```
 
-- [ ] **Step 7: Verify no gateway imports leak into the SDK**
+- [x] **Step 7: Verify no gateway imports leak into the SDK**
 
 ```bash
 rg "openclaw_gateway|fastapi|uvicorn|pydantic_settings" \
@@ -119,7 +119,7 @@ rg "openclaw_gateway|fastapi|uvicorn|pydantic_settings" \
 
 Expected: no output (exit 0, zero matches).
 
-- [ ] **Step 8: Verify the SDK wheel builds and installs as an artifact**
+- [x] **Step 8: Verify the SDK wheel builds and installs as an artifact**
 
 Catches src-layout discovery errors that editable installs can hide:
 
@@ -138,7 +138,7 @@ rm -rf /tmp/openclaw-plane-sdk-gate
 
 Expected: `<class 'openclaw_plane_sdk.client.PlaneClient'>` printed, exit 0.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add packages/openclaw-plane-sdk/
@@ -154,7 +154,7 @@ git commit -m "OPN-270: extract Plane SDK into standalone package"
 
 After Task 1, the gateway's `openclaw_plane_sdk/` directory is gone and `tests/test_plane_client.py` has moved. The gateway `pyproject.toml` still lists `openclaw_plane_sdk*` in `packages.find` and has no SDK dependency — this task fixes that.
 
-- [ ] **Step 1: Confirm the gateway tests are currently broken**
+- [x] **Step 1: Confirm the gateway tests are currently broken**
 
 ```bash
 cd apps/openclaw-gateway/openclaw-gateway
@@ -163,7 +163,7 @@ uv run pytest -q 2>&1 | tail -5
 
 Expected: errors or failures because `openclaw_plane_sdk` is no longer in the gateway directory and is not yet declared as a package dependency. This is the expected red state before the fix.
 
-- [ ] **Step 2: Replace `apps/openclaw-gateway/openclaw-gateway/pyproject.toml`**
+- [x] **Step 2: Replace `apps/openclaw-gateway/openclaw-gateway/pyproject.toml`**
 
 ```toml
 [project]
@@ -202,7 +202,7 @@ Key changes from the original:
 - Added `[tool.uv.sources]` with the relative path from this `pyproject.toml` to `packages/openclaw-plane-sdk/`
 - Changed `packages.find` `include` from `["openclaw_gateway*", "openclaw_plane_sdk*"]` to `["openclaw_gateway*"]`
 
-- [ ] **Step 3: Sync and run the gateway test suite**
+- [x] **Step 3: Sync and run the gateway test suite**
 
 ```bash
 cd apps/openclaw-gateway/openclaw-gateway
@@ -223,7 +223,7 @@ pytest -q
 deactivate
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/openclaw-gateway/openclaw-gateway/pyproject.toml
@@ -239,7 +239,7 @@ git commit -m "OPN-270: point gateway at openclaw-plane-sdk path dependency"
 - Modify: `apps/openclaw-gateway/openclaw-gateway/Dockerfile`
 - Create: `.dockerignore`
 
-- [ ] **Step 1: Update the build block in `apps/openclaw-gateway/compose.yml`**
+- [x] **Step 1: Update the build block in `apps/openclaw-gateway/compose.yml`**
 
 Replace:
 
@@ -257,7 +257,7 @@ With:
 
 `../..` resolves relative to `apps/openclaw-gateway/compose.yml` and gives the repository root. All Dockerfile `COPY` paths are then relative to that root.
 
-- [ ] **Step 2: Replace `apps/openclaw-gateway/openclaw-gateway/Dockerfile`**
+- [x] **Step 2: Replace `apps/openclaw-gateway/openclaw-gateway/Dockerfile`**
 
 ```dockerfile
 FROM python:3.12-slim
@@ -285,7 +285,7 @@ Changes from the original:
 - Added `COPY packages/openclaw-plane-sdk /build/openclaw-plane-sdk` and its `pip install` before the gateway install
 - Changed `COPY pyproject.toml` and `COPY openclaw_gateway` to use full paths from the repo root
 
-- [ ] **Step 3: Create `.dockerignore` at the repository root**
+- [x] **Step 3: Create `.dockerignore` at the repository root**
 
 ```text
 # Git history
@@ -324,7 +324,7 @@ docs/
 
 `packages/openclaw-plane-sdk/` and `apps/openclaw-gateway/openclaw-gateway/` are not excluded.
 
-- [ ] **Step 4: Verify the compose config is valid**
+- [x] **Step 4: Verify the compose config is valid**
 
 ```bash
 docker compose -f apps/openclaw-gateway/compose.yml \
@@ -333,7 +333,7 @@ docker compose -f apps/openclaw-gateway/compose.yml \
 
 Expected: exits 0 with no errors or warnings.
 
-- [ ] **Step 5: Build the image from the widened context**
+- [x] **Step 5: Build the image from the widened context**
 
 ```bash
 docker compose -f apps/openclaw-gateway/compose.yml build --no-cache
@@ -341,7 +341,7 @@ docker compose -f apps/openclaw-gateway/compose.yml build --no-cache
 
 Expected: exits 0. Both the SDK install step and the gateway install step complete without errors.
 
-- [ ] **Step 6: Verify SDK runtime dependency isolation inside the image**
+- [x] **Step 6: Verify SDK runtime dependency isolation inside the image**
 
 ```bash
 docker compose -f apps/openclaw-gateway/compose.yml \
@@ -358,7 +358,7 @@ Requires: httpx, pydantic
 
 `Requires` must not list `fastapi`, `uvicorn`, or `pydantic-settings`. Those packages are present in the image because the gateway needs them, but they must not appear as SDK dependencies.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/openclaw-gateway/compose.yml \
@@ -374,7 +374,7 @@ git commit -m "OPN-270: widen Docker build context for SDK extraction"
 **Files:**
 - Modify: this plan file as checkboxes complete.
 
-- [ ] **Step 1: Run the full verification suite**
+- [x] **Step 1: Run the full verification suite**
 
 ```bash
 # Gate 1 — SDK tests run independently
@@ -410,7 +410,7 @@ docker compose -f apps/openclaw-gateway/compose.yml \
 
 Expected: all gates pass. Gate 3 produces no output.
 
-- [ ] **Step 2: Update Linear**
+- [x] **Step 2: Update Linear**
 
 Update OPN-270 in Linear with:
 - Commit hashes from Tasks 1–3
