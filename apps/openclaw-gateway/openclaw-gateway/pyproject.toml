@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Internal OpenClaw capability gateway for selected homelab APIs"
 requires-python = ">=3.12"
 dependencies = [
+  "openclaw-plane-sdk",
   "fastapi==0.115.6",
   "httpx==0.28.1",
   "pydantic-settings==2.7.1",
@@ -17,8 +18,11 @@ test = [
   "respx==0.22.0",
 ]
 
+[tool.uv.sources]
+openclaw-plane-sdk = { path = "../../../packages/openclaw-plane-sdk", editable = true }
+
 [tool.setuptools.packages.find]
-include = ["openclaw_gateway*", "openclaw_plane_sdk*"]
+include = ["openclaw_gateway*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
