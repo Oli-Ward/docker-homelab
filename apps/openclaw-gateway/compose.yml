@@ -1,6 +1,8 @@
 services:
   openclaw-gateway:
-    build: ./openclaw-gateway
+    build:
+      context: ../..
+      dockerfile: apps/openclaw-gateway/openclaw-gateway/Dockerfile
     container_name: openclaw-gateway
     restart: unless-stopped
     ports:

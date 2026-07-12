@@ -1,0 +1,32 @@
+# Git history
+.git/
+
+# Python build artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/dist/
+**/*.egg-info/
+
+# Local secrets
+.env
+.env.*
+**/.env
+**/.env.*
+
+# TLS certificates (contain private keys)
+ssl/
+
+# Stacks not needed for the gateway image
+apps/arr-stack/
+apps/downloads/
+apps/media/
+apps/utilities/
+identity/
+infra/
+platform/
+docs/
