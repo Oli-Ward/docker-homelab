@@ -263,9 +263,10 @@ idempotency key and derives `plane:<delivery-id>` as the correlation ID for
 the acknowledgement, queue record, and structured log fields. It stores only a
 normalized delivery record in the configured queue; raw Plane payloads and
 credential-bearing headers must not be persisted. Production queueing uses
-Redis (`PLANE_WEBHOOK_QUEUE_BACKEND=redis`, `PLANE_WEBHOOK_REDIS_URL`,
-`PLANE_WEBHOOK_REDIS_PREFIX`). The file-backed queue is retained only for
-local development/tests.
+the stack-local `openclaw-gateway-redis` service
+(`PLANE_WEBHOOK_QUEUE_BACKEND=redis`, `PLANE_WEBHOOK_REDIS_URL`,
+`PLANE_WEBHOOK_REDIS_PREFIX`). The file-backed queue is retained only for local
+development/tests.
 
 The normalized queued/dispatch event may include this allowlisted work-item
 metadata when Plane provides it:
@@ -353,7 +354,7 @@ Import and enable the workflow in live n8n only after Komodo has the SSH mount,
 The template is deliberately checked in with `active: false`.
 
 Before live deployment, confirm backup/checkpoint coverage for gateway appdata
-and Redis persistence, configure Redis availability for the gateway runtime,
+and Redis persistence under `${APPDATA_ROOT}/openclaw-gateway/redis`,
 set real `PLANE_WEBHOOK_SECRET` and `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` outside
 Git, import/enable the n8n workflow, confirm SSH key scope for the OpenClaw
 dispatch command, and redeploy through Komodo. Live OPN-271 evidence must cover

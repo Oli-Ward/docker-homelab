@@ -27,7 +27,7 @@ services:
       - PLANE_DEFAULT_PROJECT_ID=${PLANE_DEFAULT_PROJECT_ID:-}
       - PLANE_WEBHOOK_SECRET=${PLANE_WEBHOOK_SECRET:-}
       - PLANE_WEBHOOK_QUEUE_BACKEND=${PLANE_WEBHOOK_QUEUE_BACKEND:-redis}
-      - PLANE_WEBHOOK_REDIS_URL=${PLANE_WEBHOOK_REDIS_URL:-redis://redis:6379/0}
+      - PLANE_WEBHOOK_REDIS_URL=${PLANE_WEBHOOK_REDIS_URL:-redis://openclaw-gateway-redis:6379/0}
       - PLANE_WEBHOOK_REDIS_PREFIX=${PLANE_WEBHOOK_REDIS_PREFIX:-openclaw:plane:webhooks}
       - PLANE_WEBHOOK_MAX_ATTEMPTS=${PLANE_WEBHOOK_MAX_ATTEMPTS:-5}
       - PLANE_WEBHOOK_RETRY_BASE_SECONDS=${PLANE_WEBHOOK_RETRY_BASE_SECONDS:-30}
@@ -44,10 +44,22 @@ services:
       - ${HOMELAB_CA_CERT_HOST_PATH:-/home/oli/docker/ssl/home-lab-root.crt}:${SSL_CERT_FILE:-/usr/local/share/ca-certificates/home-lab-root.crt}:ro
       - ${APPDATA_ROOT:?Set APPDATA_ROOT to the appdata root}/openclaw-gateway:/app/state
     networks:
+      - gateway_net
       - media_net
       - utilities_net
 
+  openclaw-gateway-redis:
+    image: redis:8.2.7
+    container_name: openclaw-gateway-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ${APPDATA_ROOT:?Set APPDATA_ROOT to the appdata root}/openclaw-gateway/redis:/data
+    networks:
+      - gateway_net
+
 networks:
+  gateway_net:
   media_net:
     external: true
   utilities_net:

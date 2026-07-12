@@ -71,7 +71,7 @@ REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/home-lab-root.crt
 PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 PLANE_WEBHOOK_QUEUE_BACKEND=redis
-PLANE_WEBHOOK_REDIS_URL=redis://redis:6379/0
+PLANE_WEBHOOK_REDIS_URL=redis://openclaw-gateway-redis:6379/0
 PLANE_WEBHOOK_REDIS_PREFIX=openclaw:plane:webhooks
 PLANE_WEBHOOK_MAX_ATTEMPTS=5
 PLANE_WEBHOOK_RETRY_BASE_SECONDS=30
@@ -134,7 +134,7 @@ events, and returns a small acknowledgement:
 }
 ```
 
-After signature validation, the gateway writes one normalized envelope per new Plane delivery to the configured queue backend. Production defaults to Redis under `PLANE_WEBHOOK_REDIS_PREFIX`; the file queue remains only for local development/tests when `PLANE_WEBHOOK_QUEUE_BACKEND=file`. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. Unsupported event/action pairs return `ignored: true` and are logged, not queued. Raw Plane payloads, signatures, and secrets are not persisted or forwarded; only a `raw_payload_hash` and allowlisted work-item fields are stored.
+After signature validation, the gateway writes one normalized envelope per new Plane delivery to the configured queue backend. Production defaults to the stack-local `openclaw-gateway-redis` service under `PLANE_WEBHOOK_REDIS_PREFIX`; the file queue remains only for local development/tests when `PLANE_WEBHOOK_QUEUE_BACKEND=file`. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. Unsupported event/action pairs return `ignored: true` and are logged, not queued. Raw Plane payloads, signatures, and secrets are not persisted or forwarded; only a `raw_payload_hash` and allowlisted work-item fields are stored.
 
 Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gateway, OpenClaw write-back, Codex/ChatGPT, or n8n automation actors. Matching deliveries are acknowledged with `queued: false`, `suppressed: true`, and `suppressed_reason: "ignored_actor"` without being written to the queue. This prevents OpenClaw-originated Plane updates from looping back into new OpenClaw work.
 
@@ -219,7 +219,7 @@ allowlisted metadata downstream agent-pickup logic can use to decide whether an
 event is eligible for dry-run pickup.
 
 Before live deployment, confirm backup/checkpoint coverage for gateway appdata
-and Redis persistence, configure Redis availability for the gateway runtime,
+and Redis persistence under `${APPDATA_ROOT}/openclaw-gateway/redis`,
 set real webhook secrets and ignored actor IDs outside Git, import/enable the
 n8n workflow, confirm SSH key scope for the OpenClaw dispatch command, and
 redeploy through Komodo. Do not mark OPN-271 done until duplicate, retry,
