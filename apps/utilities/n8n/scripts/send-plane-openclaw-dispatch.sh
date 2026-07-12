@@ -25,10 +25,18 @@ const inputPath = process.argv[2];
 const outputPath = process.argv[3];
 const event = JSON.parse(fs.readFileSync(inputPath, "utf8"));
 const normalized = {
+  schema_version: event.schema_version || "plane.webhook.v1",
+  event_id: event.event_id || event.delivery_id || "",
+  event_type: event.event_type || "",
+  idempotency_key: event.idempotency_key || event.event_id || event.delivery_id || "",
+  correlation_id: event.correlation_id || "",
+  causation_id: event.causation_id || null,
+  origin: event.origin || "plane",
+  retry_attempt: Number.isInteger(event.retry_attempt) ? event.retry_attempt : 0,
+  raw_payload_hash: event.raw_payload_hash || "",
   source: "plane",
   event: event.event || "",
   action: event.action || "",
-  correlation_id: event.correlation_id || "",
   delivery_id: event.delivery_id || "",
   resource_id: event.resource_id || "",
   source_identifier: event.source_identifier || event.sourceIdentifier || "",
@@ -46,6 +54,12 @@ const normalized = {
 };
 fs.writeFileSync(outputPath, JSON.stringify(normalized));
 NODE
+correlation_id=$("$NODE_BIN" - "$payload_file" <<'NODE'
+const fs = require("fs");
+const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+process.stdout.write(payload.correlation_id || "");
+NODE
+)
 
 "$NODE_BIN" "$SCRIPT_DIR/plane-agent-pickup-preview.js" "$payload_file" > "$preview_file"
 decision=$("$NODE_BIN" - "$preview_file" <<'NODE'
@@ -84,4 +98,31 @@ cd $workspace_q
 $dispatch_command_q --event-file $remote_payload_q
 "
 
-ssh $ssh_opts "$remote" "$remote_command"
+if dispatch_output=$(ssh $ssh_opts "$remote" "$remote_command"); then
+  "$NODE_BIN" - "$correlation_id" "$dispatch_output" <<'NODE'
+const correlationId = process.argv[2] || null;
+const output = process.argv[3] || "";
+try {
+  const parsed = JSON.parse(output);
+  if (parsed && typeof parsed === "object" && Object.prototype.hasOwnProperty.call(parsed, "ok")) {
+    process.stdout.write(JSON.stringify(parsed));
+    process.stdout.write("\n");
+    process.exit(0);
+  }
+} catch (_err) {
+}
+process.stdout.write(JSON.stringify({ ok: true, correlation_id: correlationId }));
+process.stdout.write("\n");
+NODE
+else
+  "$NODE_BIN" - "$correlation_id" <<'NODE'
+const correlationId = process.argv[2] || null;
+process.stdout.write(JSON.stringify({
+  ok: false,
+  failure_type: "retryable",
+  error_code: "openclaw_dispatch_failed",
+  correlation_id: correlationId,
+}));
+process.stdout.write("\n");
+NODE
+fi

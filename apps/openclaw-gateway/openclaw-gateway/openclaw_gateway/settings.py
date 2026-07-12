@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +24,12 @@ class GatewaySettings(BaseSettings):
     plane_workspace_slug: Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
     plane_default_project_id: str | None = None
     plane_webhook_secret: str | None = None
+    plane_webhook_queue_backend: Literal["redis", "file"] = "redis"
+    plane_webhook_redis_url: str = "redis://redis:6379/0"
+    plane_webhook_redis_prefix: str = "openclaw:plane:webhooks"
+    plane_webhook_max_attempts: int = 5
+    plane_webhook_retry_base_seconds: int = 30
+    plane_webhook_retry_max_seconds: int = 1800
     plane_webhook_queue_path: str = "/app/state/plane-webhooks/events.jsonl"
     plane_webhook_dedupe_path: str | None = None
     plane_webhook_ignored_actor_ids: str = ""

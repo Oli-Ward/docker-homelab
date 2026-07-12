@@ -104,7 +104,11 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
 
     result = await client.forward_plane_webhook_event(
         {
+            "schema_version": "plane.webhook.v1",
+            "event_id": "delivery-1",
+            "event_type": "work_item.updated",
             "correlation_id": "plane:delivery-1",
+            "idempotency_key": "delivery-1",
             "delivery_id": "delivery-1",
             "event": "issue",
             "action": "update",
@@ -120,23 +124,61 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
             "state_name": "Ready for Agent",
             "priority": "high",
             "label_names": ["agent:ready", "repo:docker"],
+            "origin": "plane",
+            "retry_attempt": 0,
+            "raw_payload_hash": "a" * 64,
             "description_html": "<p>must not forward</p>",
         }
     )
 
     assert route.called
     assert route.calls.last.request.content == (
-        b'{"source":"plane","event":"issue","action":"update",'
-        b'"correlation_id":"plane:delivery-1","delivery_id":"delivery-1",'
+        b'{"schema_version":"plane.webhook.v1","event_id":"delivery-1",'
+        b'"event_type":"work_item.updated","idempotency_key":"delivery-1",'
+        b'"correlation_id":"plane:delivery-1","causation_id":null,"origin":"plane",'
+        b'"retry_attempt":0,"raw_payload_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",'
+        b'"source":"plane","event":"issue","action":"update","delivery_id":"delivery-1",'
         b'"resource_id":"work-item-1","webhook_id":"webhook-1","actor_id":"human-user-1",'
         b'"team":"Openclaw",'
         b'"project_id":"project-1","source_identifier":"OPN-273","sequence_id":273,"name":"Ready for agent",'
         b'"state_id":"state-ready","state_name":"Ready for Agent","priority":"high",'
         b'"label_names":["agent:ready","repo:docker"]}'
     )
-    assert result == {
-        "ok": True,
-        "workflow": "plane-openclaw-dispatch",
-        "received": True,
-        "correlation_id": "plane:delivery-1",
-    }
+    assert result.ok is True
+    assert result.failure_type is None
+    assert result.error_code is None
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_n8n_forward_plane_webhook_event_classifies_permanent_failure() -> None:
+    respx.post("http://n8n:5678/webhook/plane-openclaw-dispatch").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "ok": False,
+                "failure_type": "permanent",
+                "error_code": "invalid_idempotency_key",
+                "detail": "bad key",
+            },
+        )
+    )
+    client = N8nClient(
+        base_url="http://n8n:5678",
+        smoke_path="/webhook/openclaw-smoke",
+        rating_prompt_path="/webhook/jellyfin-rating-prompt",
+        plane_dispatch_path="/webhook/plane-openclaw-dispatch",
+        timeout_seconds=5.0,
+    )
+
+    result = await client.forward_plane_webhook_event(
+        {
+            "event_id": "delivery-1",
+            "correlation_id": "plane:delivery-1",
+            "delivery_id": "delivery-1",
+        }
+    )
+
+    assert result.ok is False
+    assert result.failure_type == "permanent"
+    assert result.error_code == "invalid_idempotency_key"

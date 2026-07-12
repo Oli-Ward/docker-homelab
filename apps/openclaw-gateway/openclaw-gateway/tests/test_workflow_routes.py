@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 
 import httpx
 import pytest
@@ -39,6 +40,7 @@ def make_settings(**overrides) -> GatewaySettings:
         "plane_api_key": "plane-secret",
         "plane_workspace_slug": "openclaw",
         "plane_webhook_secret": "plane-webhook-secret",
+        "plane_webhook_queue_backend": "file",
         "n8n_webhook_base_url": "http://n8n:5678",
         "n8n_openclaw_smoke_path": "/webhook/openclaw-smoke",
         "upstream_timeout_seconds": 5.0,
@@ -52,9 +54,10 @@ def make_app(**overrides):
 
 
 def plane_signature(payload: dict) -> str:
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     return hmac.new(
         b"plane-webhook-secret",
-        msg=json.dumps(payload).encode("utf-8"),
+        msg=body,
         digestmod=hashlib.sha256,
     ).hexdigest()
 
@@ -416,10 +419,11 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
     caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
     queue_path = tmp_path / "plane-webhooks" / "events.jsonl"
     payload = {
-        "event": "issue",
-        "action": "update",
+        "event": "issue.updated",
+        "action": "updated",
         "webhook_id": "webhook-1",
         "workspace_id": "workspace-1",
+        "created_at": "2026-07-12T00:00:00Z",
         "data": {
             "id": "work-item-1",
             "team": "Openclaw",
@@ -450,11 +454,15 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         )
 
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    assert body == {
         "accepted": True,
         "delivery_id": "delivery-1",
-        "event": "issue",
-        "action": "update",
+        "event": "issue.updated",
+        "action": "updated",
+        "event_type": "work_item.state_changed",
+        "schema_version": "plane.webhook.v1",
+        "raw_payload_hash": hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode("utf-8")).hexdigest(),
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
         "team": "Openclaw",
@@ -469,12 +477,26 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "correlation_id": "plane:delivery-1",
         "queued": True,
         "duplicate": False,
+        "ignored": False,
     }
+    assert re.match(r"^2026-", body["raw_payload_hash"]) is None
     [queued_event] = [json.loads(line) for line in queue_path.read_text().splitlines()]
+    received_at = queued_event.pop("received_at")
     assert queued_event == {
+        "schema_version": "plane.webhook.v1",
+        "event_id": "delivery-1",
         "delivery_id": "delivery-1",
-        "event": "issue",
-        "action": "update",
+        "event": "issue.updated",
+        "action": "updated",
+        "event_type": "work_item.state_changed",
+        "occurred_at": "2026-07-12T00:00:00Z",
+        "plane_workspace_id": "workspace-1",
+        "plane_project_id": "project-1",
+        "plane_resource_type": "issue",
+        "plane_resource_id": "work-item-1",
+        "work_item_identifier": "OPN-273",
+        "source": "plane",
+        "origin": "plane",
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
         "team": "Openclaw",
@@ -487,8 +509,27 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "priority": "high",
         "label_names": ["agent:ready", "repo:docker"],
         "correlation_id": "plane:delivery-1",
+        "causation_id": None,
+        "raw_payload_hash": hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode("utf-8")).hexdigest(),
+        "retry_attempt": 0,
+        "actor": {"id": None, "display_name": None},
+        "payload": {
+            "label_names": ["agent:ready", "repo:docker"],
+            "name": "Ready for agent",
+            "priority": "high",
+            "project_id": "project-1",
+            "sequence_id": 273,
+            "source_identifier": "OPN-273",
+            "state_id": "state-ready",
+            "state_name": "Ready for Agent",
+            "team": "Openclaw",
+        },
     }
+    assert re.match(r"^\d{4}-\d{2}-\d{2}T", received_at)
     assert "description_html" not in queued_event
+    assert "data" not in queued_event
+    assert "X-Plane-Signature" not in json.dumps(queued_event)
+    assert "plane-webhook-secret" not in json.dumps(queued_event)
     assert "raw description must not be forwarded" not in json.dumps(queued_event)
     [log_record] = [
         record
@@ -497,8 +538,8 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
     ]
     assert log_record.correlation_id == "plane:delivery-1"
     assert log_record.plane_delivery_id == "delivery-1"
-    assert log_record.plane_event == "issue"
-    assert log_record.plane_action == "update"
+    assert log_record.plane_event == "issue.updated"
+    assert log_record.plane_action == "updated"
     assert log_record.plane_resource_id == "work-item-1"
     assert log_record.plane_webhook_id == "webhook-1"
     assert log_record.duplicate is False
@@ -581,12 +622,17 @@ async def test_plane_webhook_suppresses_ignored_actor_without_queueing(tmp_path,
         )
 
     assert response.status_code == 200
+    assert response.json()["suppressed"] is True
+    assert response.json()["suppressed_reason"] == "ignored_actor"
     assert response.json() == {
         "accepted": True,
         "correlation_id": "plane:delivery-1",
         "delivery_id": "delivery-1",
         "event": "issue",
         "action": "update",
+        "event_type": "work_item.updated",
+        "schema_version": "plane.webhook.v1",
+        "raw_payload_hash": hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode("utf-8")).hexdigest(),
         "resource_id": "work-item-1",
         "webhook_id": "webhook-1",
         "actor_id": "automation-user-1",
@@ -594,6 +640,7 @@ async def test_plane_webhook_suppresses_ignored_actor_without_queueing(tmp_path,
         "duplicate": False,
         "suppressed": True,
         "suppressed_reason": "ignored_actor",
+        "ignored": False,
     }
     assert not queue_path.exists()
     [suppressed_log] = [
@@ -666,6 +713,13 @@ async def test_plane_webhook_queue_status_reports_counts(tmp_path):
         "dispatched_count": 1,
         "pending_count": 1,
         "malformed_count": 0,
+        "retry_count": 0,
+        "dead_letter_count": 0,
+        "last_successful_dispatch_at": None,
+        "last_dead_letter_delivery_id": None,
+        "redis_configured": False,
+        "redis_ready": None,
+        "n8n_dispatch_configured": True,
         "last_delivery_id": "delivery-2",
         "last_correlation_id": "plane:delivery-2",
     }
@@ -691,9 +745,46 @@ async def test_plane_webhook_queue_status_reports_empty_missing_queue(tmp_path):
         "dispatched_count": 0,
         "pending_count": 0,
         "malformed_count": 0,
+        "retry_count": 0,
+        "dead_letter_count": 0,
+        "last_successful_dispatch_at": None,
+        "last_dead_letter_delivery_id": None,
+        "redis_configured": False,
+        "redis_ready": None,
+        "n8n_dispatch_configured": True,
         "last_delivery_id": None,
         "last_correlation_id": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_ignores_unsupported_event_without_queueing(tmp_path):
+    queue_path = tmp_path / "events.jsonl"
+    payload = {
+        "event": "project.created",
+        "action": "created",
+        "webhook_id": "webhook-1",
+        "workspace_id": "workspace-1",
+        "data": {"id": "project-1", "name": "OpenClaw"},
+    }
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-project",
+                "X-Plane-Event": "project.created",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    assert response.json()["queued"] is False
+    assert response.json()["ignored"] is True
+    assert response.json()["ignored_reason"] == "unsupported_event"
+    assert not queue_path.exists()
 
 
 @pytest.mark.asyncio
@@ -766,15 +857,13 @@ async def test_plane_webhook_dispatch_leaves_failed_delivery_pending_for_retry(t
     queue_path = tmp_path / "events.jsonl"
     attempts: list[str] = []
 
-    async def failing_then_successful_dispatch(self, event: dict[str, object]) -> dict[str, object]:
+    async def failing_dispatch(self, event: dict[str, object]) -> dict[str, object]:
         attempts.append(str(event["delivery_id"]))
-        if len(attempts) == 1:
-            raise httpx.ConnectError("n8n unavailable")
-        return {"ok": True, "received": True, "correlation_id": event["correlation_id"]}
+        raise httpx.ConnectError("n8n unavailable")
 
     monkeypatch.setattr(
         "openclaw_gateway.routers.workflow.N8nClient.forward_plane_webhook_event",
-        failing_then_successful_dispatch,
+        failing_dispatch,
     )
     transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
     payload = {
@@ -797,8 +886,12 @@ async def test_plane_webhook_dispatch_leaves_failed_delivery_pending_for_retry(t
             "/v1/workflow/plane/webhook/dispatch",
             headers={"Authorization": "Bearer gateway-secret"},
         )
-        retried_dispatch = await client.post(
+        immediate_retry = await client.post(
             "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        queue_status = await client.get(
+            "/v1/workflow/plane/webhook/queue",
             headers={"Authorization": "Bearer gateway-secret"},
         )
 
@@ -806,14 +899,119 @@ async def test_plane_webhook_dispatch_leaves_failed_delivery_pending_for_retry(t
     assert failed_dispatch.json() == {
         "detail": "plane webhook dispatch failed for delivery-1",
     }
-    assert retried_dispatch.status_code == 200
-    assert retried_dispatch.json() == {
-        "dispatched_count": 1,
+    assert immediate_retry.status_code == 200
+    assert immediate_retry.json() == {
+        "dispatched_count": 0,
         "pending_count": 0,
-        "delivery_ids": ["delivery-1"],
+        "delivery_ids": [],
         "failed_delivery_id": None,
     }
-    assert attempts == ["delivery-1", "delivery-1"]
+    assert queue_status.json()["retry_count"] == 1
+    assert queue_status.json()["dead_letter_count"] == 0
+    assert attempts == ["delivery-1"]
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_dispatch_moves_permanent_failure_to_dead_letter(tmp_path, monkeypatch):
+    queue_path = tmp_path / "events.jsonl"
+
+    async def permanent_failure(self, event: dict[str, object]) -> dict[str, object]:
+        return {
+            "ok": False,
+            "failure_type": "permanent",
+            "error_code": "invalid_idempotency_key",
+            "detail": "bad key",
+        }
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.workflow.N8nClient.forward_plane_webhook_event",
+        permanent_failure,
+    )
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-1"},
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-1",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+        failed_dispatch = await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        queue_status = await client.get(
+            "/v1/workflow/plane/webhook/queue",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert failed_dispatch.status_code == 502
+    assert failed_dispatch.json()["detail"] == "plane webhook dispatch permanent failure for delivery-1"
+    assert queue_status.json()["retry_count"] == 0
+    assert queue_status.json()["dead_letter_count"] == 1
+    assert queue_status.json()["pending_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_plane_webhook_replay_moves_dead_letter_back_to_pending(tmp_path, monkeypatch):
+    queue_path = tmp_path / "events.jsonl"
+
+    async def permanent_failure(self, event: dict[str, object]) -> dict[str, object]:
+        return {"ok": False, "failure_type": "permanent", "error_code": "invalid_event"}
+
+    monkeypatch.setattr(
+        "openclaw_gateway.routers.workflow.N8nClient.forward_plane_webhook_event",
+        permanent_failure,
+    )
+    transport = httpx.ASGITransport(app=make_app(plane_webhook_queue_path=str(queue_path)))
+    payload = {
+        "event": "issue",
+        "action": "update",
+        "webhook_id": "webhook-1",
+        "data": {"id": "work-item-1"},
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/v1/workflow/plane/webhook",
+            headers={
+                "X-Plane-Delivery": "delivery-dead",
+                "X-Plane-Event": "issue",
+                "X-Plane-Signature": plane_signature(payload),
+            },
+            json=payload,
+        )
+        await client.post(
+            "/v1/workflow/plane/webhook/dispatch",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        replayed = await client.post(
+            "/v1/workflow/plane/webhook/replay",
+            params={"delivery_id": "delivery-dead"},
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        queue_status = await client.get(
+            "/v1/workflow/plane/webhook/queue",
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+        missing = await client.post(
+            "/v1/workflow/plane/webhook/replay",
+            params={"delivery_id": "missing"},
+            headers={"Authorization": "Bearer gateway-secret"},
+        )
+
+    assert replayed.status_code == 200
+    assert replayed.json() == {"replayed": True, "delivery_id": "delivery-dead"}
+    assert queue_status.json()["dead_letter_count"] == 0
+    assert queue_status.json()["pending_count"] == 1
+    assert missing.status_code == 404
 
 
 @pytest.mark.asyncio

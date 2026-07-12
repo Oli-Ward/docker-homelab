@@ -31,7 +31,7 @@ case "$last" in
     ;;
   *)
     printf '%s\\n' "$last" > "$FAKE_SSH_COMMAND"
-    printf '%s\\n' '{"status":"accepted","queued":true}'
+    printf '%s\\n' '{"ok":true,"correlation_id":"plane:delivery-1"}'
     ;;
 esac
 `,
@@ -39,10 +39,15 @@ esac
 );
 
 const input = {
+  schema_version: "plane.webhook.v1",
+  event_id: "delivery-1",
+  event_type: "work_item.updated",
+  idempotency_key: "delivery-1",
   source: "plane",
   event: "issue",
   action: "update",
   correlation_id: "plane:delivery-1",
+  causation_id: null,
   delivery_id: "delivery-1",
   resource_id: "work-item-1",
   webhook_id: "webhook-1",
@@ -56,6 +61,9 @@ const input = {
   state_name: "Ready for Agent",
   priority: "high",
   label_names: ["agent:ready", "repo:docker"],
+  origin: "plane",
+  retry_attempt: 0,
+  raw_payload_hash: "a".repeat(64),
   received_at: "2026-07-11T08:45:00.000Z",
   description_html: "<p>must not forward</p>",
   raw_payload: { should: "not-forward" },
@@ -87,17 +95,25 @@ assert.equal(
   `sender exited ${result.status} signal ${result.signal}: ${result.stderr || result.error || ""} tmp ${tmpDir}`,
 );
 assert.equal(result.stderr, "");
-assert.match(result.stdout, /"status":"accepted"/);
+assert.match(result.stdout, /"ok":true/);
+assert.match(result.stdout, /"correlation_id":"plane:delivery-1"/);
 
 const uploaded = JSON.parse(fs.readFileSync(capturedPayloadPath, "utf8"));
 assert.deepEqual(uploaded, {
+  schema_version: "plane.webhook.v1",
+  event_id: "delivery-1",
+  event_type: "work_item.updated",
+  idempotency_key: "delivery-1",
+  correlation_id: "plane:delivery-1",
+  causation_id: null,
+  origin: "plane",
+  retry_attempt: 0,
+  raw_payload_hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   source: "plane",
   event: "issue",
   action: "update",
-  correlation_id: "plane:delivery-1",
   delivery_id: "delivery-1",
   resource_id: "work-item-1",
-  source_identifier: "work-item-1",
   webhook_id: "webhook-1",
   actor_id: "human-user-1",
   team: "Openclaw",

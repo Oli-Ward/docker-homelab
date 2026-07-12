@@ -15,7 +15,11 @@ def write_fake_curl(
     n8n_status: str = "200",
     seerr_request_status: str = "200",
     plane_queue_status: str = "200",
-    plane_queue_body: str = '{"queued_count":2,"dedupe_count":2,"dispatched_count":1,"pending_count":1,"malformed_count":0}',
+    plane_queue_body: str = (
+        '{"queued_count":2,"dedupe_count":2,"dispatched_count":1,"pending_count":1,'
+        '"retry_count":0,"dead_letter_count":0,"malformed_count":0,'
+        '"redis_configured":true,"n8n_dispatch_configured":true}'
+    ),
 ) -> Path:
     curl = tmp_path / "curl"
     log = tmp_path / "curl.log"
@@ -259,7 +263,11 @@ def test_smoke_script_reports_plane_webhook_queue_missing_field(tmp_path: Path):
     write_fake_curl(
         tmp_path,
         plane_queue_status="200",
-        plane_queue_body='{"queued_count":2,"dedupe_count":2,"dispatched_count":1,"malformed_count":0}',
+        plane_queue_body=(
+            '{"queued_count":2,"dispatched_count":1,"retry_count":0,'
+            '"dead_letter_count":0,"malformed_count":0,"redis_configured":true,'
+            '"n8n_dispatch_configured":true}'
+        ),
     )
     env = smoke_env(tmp_path)
     env["CHECK_PLANE_WEBHOOK_QUEUE"] = "1"

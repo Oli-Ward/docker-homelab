@@ -261,19 +261,29 @@ compatibility, preserve source event IDs such as `linear-delivery-id` or
 The OpenClaw gateway webhook ingress uses `X-Plane-Delivery` as its first
 idempotency key and derives `plane:<delivery-id>` as the correlation ID for
 the acknowledgement, queue record, and structured log fields. It stores only a
-normalized delivery record in the local gateway queue; raw Plane payloads and
-credential-bearing headers must not be persisted.
+normalized delivery record in the configured queue; raw Plane payloads and
+credential-bearing headers must not be persisted. Production queueing uses
+Redis (`PLANE_WEBHOOK_QUEUE_BACKEND=redis`, `PLANE_WEBHOOK_REDIS_URL`,
+`PLANE_WEBHOOK_REDIS_PREFIX`). The file-backed queue is retained only for
+local development/tests.
 
 The normalized queued/dispatch event may include this allowlisted work-item
 metadata when Plane provides it:
 
 ```json
 {
+  "schema_version": "plane.webhook.v1",
+  "event_id": "delivery-id",
+  "event_type": "work_item.updated",
   "source": "plane",
+  "origin": "plane",
   "event": "issue",
   "action": "update",
   "correlation_id": "plane:delivery-id",
+  "causation_id": null,
   "delivery_id": "delivery-id",
+  "raw_payload_hash": "sha256-hex",
+  "retry_attempt": 0,
   "resource_id": "work-item-uuid",
   "webhook_id": "webhook-uuid",
   "actor_id": "plane-user-uuid",
@@ -320,13 +330,16 @@ acknowledged, logged with `suppressed_reason=ignored_actor`, and not queued.
 Gateway dispatch to OpenClaw is a separate authenticated step. The dispatcher
 reads pending normalized events from the queue, posts them to the fixed n8n
 `N8N_PLANE_WEBHOOK_DISPATCH_PATH`, and records only successful delivery IDs as
-dispatched. Failed downstream sends remain pending and must be retried by a
-later dispatch call or scheduler run.
+dispatched. Retryable downstream failures schedule capped exponential backoff;
+permanent or exhausted failures move to dead letter. Operators can replay a
+dead-lettered delivery through the authenticated replay endpoint instead of
+editing Redis directly.
 
 The authenticated queue diagnostics endpoint is read-only. It reports total
 valid queued records, dedupe entries, dispatched delivery IDs, still-pending
-events, malformed records, and the last safe delivery/correlation identifiers
-without returning raw payloads or marking anything dispatched.
+events, retry count, dead-letter count, Redis/n8n readiness flags, malformed
+records, and the last safe delivery/correlation identifiers without returning
+raw payloads or marking anything dispatched.
 
 The repo-managed n8n dispatch template is:
 
@@ -338,6 +351,14 @@ The repo-managed n8n dispatch template is:
 Import and enable the workflow in live n8n only after Komodo has the SSH mount,
 `OPENCLAW_PLANE_DISPATCH_COMMAND`, and real Plane automation actor IDs ready.
 The template is deliberately checked in with `active: false`.
+
+Before live deployment, confirm backup/checkpoint coverage for gateway appdata
+and Redis persistence, configure Redis availability for the gateway runtime,
+set real `PLANE_WEBHOOK_SECRET` and `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` outside
+Git, import/enable the n8n workflow, confirm SSH key scope for the OpenClaw
+dispatch command, and redeploy through Komodo. Live OPN-271 evidence must cover
+duplicate suppression, downstream retry/backoff, dead-letter visibility,
+dead-letter replay, and write-back loop prevention before the ticket is Done.
 
 The first repo-managed read-only n8n report automation is:
 

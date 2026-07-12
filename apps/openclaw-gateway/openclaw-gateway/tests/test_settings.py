@@ -41,6 +41,12 @@ def test_settings_accept_valid_config():
     assert settings.plane_workspace_slug == "openclaw"
     assert settings.plane_default_project_id is None
     assert settings.plane_webhook_secret is None
+    assert settings.plane_webhook_queue_backend == "redis"
+    assert settings.plane_webhook_redis_url == "redis://redis:6379/0"
+    assert settings.plane_webhook_redis_prefix == "openclaw:plane:webhooks"
+    assert settings.plane_webhook_max_attempts == 5
+    assert settings.plane_webhook_retry_base_seconds == 30
+    assert settings.plane_webhook_retry_max_seconds == 1800
     assert settings.plane_webhook_queue_path == "/app/state/plane-webhooks/events.jsonl"
     assert settings.plane_webhook_dedupe_path is None
     assert settings.plane_webhook_ignored_actor_ids == ""
@@ -134,3 +140,12 @@ def test_settings_parses_plane_webhook_ignored_actor_ids():
         "automation-user-1",
         "codex-user-1",
     }
+
+
+def test_plane_webhook_queue_backend_accepts_file_for_local_development() -> None:
+    kwargs = valid_settings_kwargs()
+    kwargs["plane_webhook_queue_backend"] = "file"
+
+    settings = GatewaySettings(**kwargs)
+
+    assert settings.plane_webhook_queue_backend == "file"

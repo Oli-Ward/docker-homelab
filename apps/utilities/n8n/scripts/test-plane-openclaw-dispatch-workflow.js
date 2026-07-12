@@ -39,6 +39,15 @@ const assignmentNames = payloadBuilder.parameters.assignments.assignments.map(
 );
 assert.deepEqual(
   [
+    "schema_version",
+    "event_id",
+    "event_type",
+    "idempotency_key",
+    "correlation_id",
+    "causation_id",
+    "origin",
+    "retry_attempt",
+    "raw_payload_hash",
     "project_id",
     "team",
     "source_identifier",
@@ -57,5 +66,6 @@ assert.ok(response, "workflow must return a webhook response");
 assert.equal(response.parameters.respondWith, "json");
 assert.match(response.parameters.responseBody, /plane-openclaw-dispatch/);
 assert.match(response.parameters.responseBody, /correlation_id/);
+assert.match(response.parameters.responseBody, /failure_type/);
 
 console.log("plane-openclaw-dispatch workflow tests passed");

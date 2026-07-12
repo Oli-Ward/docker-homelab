@@ -133,7 +133,7 @@ if [[ "${CHECK_PLANE_WEBHOOK_QUEUE:-0}" == "1" ]]; then
     exit 1
   fi
 
-  for field in queued_count dedupe_count dispatched_count pending_count malformed_count; do
+  for field in queued_count pending_count dispatched_count retry_count dead_letter_count malformed_count redis_configured n8n_dispatch_configured; do
     if ! grep -q "\"${field}\"" "${plane_queue_body}"; then
       echo "Plane webhook queue response missing ${field}." >&2
       exit 1

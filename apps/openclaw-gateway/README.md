@@ -35,6 +35,7 @@ POST /v1/automation/n8n/openclaw-smoke
 POST /v1/workflow/plane/webhook
 GET /v1/workflow/plane/webhook/queue
 POST /v1/workflow/plane/webhook/dispatch?limit=10
+POST /v1/workflow/plane/webhook/replay?delivery_id=...
 GET /v1/workflow/plane/projects
 GET /v1/workflow/plane/projects/{project_id}/states
 GET /v1/workflow/plane/projects/{project_id}/labels
@@ -69,8 +70,14 @@ SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt
 REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/home-lab-root.crt
 PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
+PLANE_WEBHOOK_QUEUE_BACKEND=redis
+PLANE_WEBHOOK_REDIS_URL=redis://redis:6379/0
+PLANE_WEBHOOK_REDIS_PREFIX=openclaw:plane:webhooks
+PLANE_WEBHOOK_MAX_ATTEMPTS=5
+PLANE_WEBHOOK_RETRY_BASE_SECONDS=30
+PLANE_WEBHOOK_RETRY_MAX_SECONDS=1800
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
-PLANE_WEBHOOK_DEDUPE_PATH=<optional sidecar path; defaults next to queue>
+PLANE_WEBHOOK_DEDUPE_PATH=<optional local-development sidecar path; defaults next to queue>
 PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
 N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 ```
@@ -106,7 +113,8 @@ X-Plane-Event: <event name>
 X-Plane-Signature: <HMAC-SHA256 hex digest>
 ```
 
-The gateway validates the signature and returns a small acknowledgement:
+The gateway validates the signature, allowlist-filters supported issue/comment
+events, and returns a small acknowledgement:
 
 ```json
 {
@@ -115,14 +123,18 @@ The gateway validates the signature and returns a small acknowledgement:
   "delivery_id": "delivery-uuid",
   "event": "issue",
   "action": "update",
+  "event_type": "work_item.updated",
+  "schema_version": "plane.webhook.v1",
+  "raw_payload_hash": "sha256-hex",
   "resource_id": "work-item-uuid",
   "webhook_id": "webhook-uuid",
   "queued": true,
-  "duplicate": false
+  "duplicate": false,
+  "ignored": false
 }
 ```
 
-After signature validation, the gateway writes one normalized JSONL record per new Plane delivery to `PLANE_WEBHOOK_QUEUE_PATH` and logs the same `correlation_id` with delivery, event, action, resource, webhook, queued, duplicate, and actor fields. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. The queue is mounted under `${APPDATA_ROOT}/openclaw-gateway` in Compose; confirm this appdata path is backed up or checkpointed before live deployment.
+After signature validation, the gateway writes one normalized envelope per new Plane delivery to the configured queue backend. Production defaults to Redis under `PLANE_WEBHOOK_REDIS_PREFIX`; the file queue remains only for local development/tests when `PLANE_WEBHOOK_QUEUE_BACKEND=file`. Duplicate `X-Plane-Delivery` values return `queued: false` and `duplicate: true` without appending another queue record. Unsupported event/action pairs return `ignored: true` and are logged, not queued. Raw Plane payloads, signatures, and secrets are not persisted or forwarded; only a `raw_payload_hash` and allowlisted work-item fields are stored.
 
 Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gateway, OpenClaw write-back, Codex/ChatGPT, or n8n automation actors. Matching deliveries are acknowledged with `queued: false`, `suppressed: true`, and `suppressed_reason: "ignored_actor"` without being written to the queue. This prevents OpenClaw-originated Plane updates from looping back into new OpenClaw work.
 
@@ -137,7 +149,14 @@ Set `PLANE_WEBHOOK_IGNORED_ACTOR_IDS` to comma-separated Plane user IDs for gate
   "dedupe_count": 2,
   "dispatched_count": 1,
   "pending_count": 1,
+  "retry_count": 0,
+  "dead_letter_count": 0,
   "malformed_count": 0,
+  "last_successful_dispatch_at": null,
+  "last_dead_letter_delivery_id": null,
+  "redis_configured": true,
+  "redis_ready": true,
+  "n8n_dispatch_configured": true,
   "last_delivery_id": "delivery-uuid",
   "last_correlation_id": "plane:delivery-uuid"
 }
@@ -148,7 +167,7 @@ dispatch, replay, delete, or mutate queue records. It never returns raw Plane
 payloads, webhook signatures, or secrets. To include this in the gateway smoke
 script, run `CHECK_PLANE_WEBHOOK_QUEUE=1 scripts/smoke-openclaw-gateway.sh`.
 
-`POST /v1/workflow/plane/webhook/dispatch?limit=10` is an authenticated dispatcher for queued Plane events. It sends pending normalized events to `N8N_PLANE_WEBHOOK_DISPATCH_PATH` and records successfully dispatched delivery IDs in a sidecar file next to the queue. If n8n times out or returns an error, the failed delivery is not marked dispatched, so the next dispatch call retries it. The endpoint returns only dispatch counts and delivery IDs:
+`POST /v1/workflow/plane/webhook/dispatch?limit=10` is an authenticated dispatcher for queued Plane events. It sends pending normalized events to `N8N_PLANE_WEBHOOK_DISPATCH_PATH` and records successfully dispatched delivery IDs. Retryable n8n/OpenClaw failures are scheduled with capped exponential backoff; permanent failures and exhausted retries move to dead letter. `POST /v1/workflow/plane/webhook/replay?delivery_id=...` moves a dead-lettered event back to pending without dispatching it immediately. The endpoint returns only dispatch counts and delivery IDs:
 
 ```json
 {
@@ -165,10 +184,18 @@ The n8n sender forwards only the normalized dispatch record to OpenClaw:
 
 ```json
 {
+  "schema_version": "plane.webhook.v1",
+  "event_id": "delivery-uuid",
+  "event_type": "work_item.updated",
+  "idempotency_key": "delivery-uuid",
+  "correlation_id": "plane:delivery-uuid",
+  "causation_id": null,
+  "origin": "plane",
+  "retry_attempt": 0,
+  "raw_payload_hash": "sha256-hex",
   "source": "plane",
   "event": "issue",
   "action": "update",
-  "correlation_id": "plane:delivery-uuid",
   "delivery_id": "delivery-uuid",
   "resource_id": "work-item-uuid",
   "webhook_id": "webhook-uuid",
@@ -190,6 +217,13 @@ It does not forward raw Plane payloads, descriptions, comments, webhook
 signatures, or gateway tokens. The optional work-item fields above are the
 allowlisted metadata downstream agent-pickup logic can use to decide whether an
 event is eligible for dry-run pickup.
+
+Before live deployment, confirm backup/checkpoint coverage for gateway appdata
+and Redis persistence, configure Redis availability for the gateway runtime,
+set real webhook secrets and ignored actor IDs outside Git, import/enable the
+n8n workflow, confirm SSH key scope for the OpenClaw dispatch command, and
+redeploy through Komodo. Do not mark OPN-271 done until duplicate, retry,
+dead-letter/replay, and write-back loop-prevention smoke evidence is recorded.
 
 For local dry-run checks, `apps/utilities/n8n/scripts/plane-agent-pickup-preview.js`
 consumes the same normalized event from stdin or a JSON file and returns only a

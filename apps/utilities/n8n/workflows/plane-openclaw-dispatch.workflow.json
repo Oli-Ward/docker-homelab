@@ -30,6 +30,30 @@
               "type": "string"
             },
             {
+              "id": "7cbb45b1-8f8e-4b7c-aed1-4b7d5ebc25a1",
+              "name": "schema_version",
+              "value": "={{ $json.body.schema_version || 'plane.webhook.v1' }}",
+              "type": "string"
+            },
+            {
+              "id": "0a9d7273-ec9e-43ab-a438-19f66273f5fb",
+              "name": "event_id",
+              "value": "={{ $json.body.event_id || $json.body.delivery_id }}",
+              "type": "string"
+            },
+            {
+              "id": "e843b7b5-d59b-44a3-a892-1a9204d7db19",
+              "name": "event_type",
+              "value": "={{ $json.body.event_type }}",
+              "type": "string"
+            },
+            {
+              "id": "4c25971b-7f0d-40dd-9c1e-9477c6c724cc",
+              "name": "idempotency_key",
+              "value": "={{ $json.body.idempotency_key || $json.body.event_id || $json.body.delivery_id }}",
+              "type": "string"
+            },
+            {
               "id": "0b1f791e-9b76-4ace-9262-5c54ee51e0e5",
               "name": "event",
               "value": "={{ $json.body.event }}",
@@ -45,6 +69,30 @@
               "id": "ec51c8c6-c229-4fe9-8eff-47f70bb286fe",
               "name": "correlation_id",
               "value": "={{ $json.body.correlation_id }}",
+              "type": "string"
+            },
+            {
+              "id": "ca14971d-4524-466a-bb20-d146bb7a4b89",
+              "name": "causation_id",
+              "value": "={{ $json.body.causation_id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "f831bf11-c686-4a21-8a21-28f0851cab4c",
+              "name": "origin",
+              "value": "={{ $json.body.origin || 'plane' }}",
+              "type": "string"
+            },
+            {
+              "id": "ba7022df-3fd6-4a70-bbff-883f9e5b1123",
+              "name": "retry_attempt",
+              "value": "={{ $json.body.retry_attempt || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "53238306-8bde-4075-918f-8da12132021e",
+              "name": "raw_payload_hash",
+              "value": "={{ $json.body.raw_payload_hash }}",
               "type": "string"
             },
             {
@@ -161,7 +209,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, workflow: 'plane-openclaw-dispatch', received: true, correlation_id: $node[\"Build Plane Dispatch Payload\"].json.correlation_id, delivery_id: $node[\"Build Plane Dispatch Payload\"].json.delivery_id } }}",
+        "responseBody": "={{ (() => { try { return JSON.parse($node[\"Send OpenClaw Plane Dispatch\"].json.stdout || '{}'); } catch (error) { return { ok: false, workflow: 'plane-openclaw-dispatch', failure_type: 'retryable', error_code: 'invalid_sender_response', correlation_id: $node[\"Build Plane Dispatch Payload\"].json.correlation_id }; } })() }}",
         "options": {
           "responseCode": 200
         }

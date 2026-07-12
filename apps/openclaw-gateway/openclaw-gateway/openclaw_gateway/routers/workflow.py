@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import json
 import logging
+import random
+from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
 import httpx
@@ -10,7 +12,15 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, s
 
 from openclaw_gateway.auth import require_gateway_token
 from openclaw_gateway.clients.n8n import N8nClient
-from openclaw_gateway.plane_webhooks import FilePlaneWebhookQueue, PlaneWebhookQueueError
+from openclaw_gateway.plane_webhooks import (
+    FilePlaneWebhookQueue,
+    PlaneWebhookFailure,
+    PlaneWebhookQueue,
+    PlaneWebhookQueueError,
+    RedisPlaneWebhookQueue,
+    classify_plane_event,
+    normalize_plane_webhook_event,
+)
 from openclaw_gateway.schemas.workflow import (
     PlaneComment,
     PlaneCommentCreate,
@@ -24,6 +34,7 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWebhookAck,
     PlaneWebhookDispatchResponse,
     PlaneWebhookQueueStatusResponse,
+    PlaneWebhookReplayResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
 from openclaw_plane_sdk import PlaneApiError, PlaneClient, PlaneResponseError
@@ -51,6 +62,50 @@ def _audit_plane_write(
             "plane_item_id": plane_item_id,
         },
     )
+
+
+def _plane_webhook_queue(settings: GatewaySettings) -> PlaneWebhookQueue:
+    if settings.plane_webhook_queue_backend == "file":
+        return FilePlaneWebhookQueue(
+            queue_path=settings.plane_webhook_queue_path,
+            dedupe_path=settings.plane_webhook_dedupe_path,
+        )
+    try:
+        from redis import Redis
+    except ImportError as exc:
+        raise PlaneWebhookQueueError("redis dependency is unavailable") from exc
+    return RedisPlaneWebhookQueue(
+        Redis.from_url(settings.plane_webhook_redis_url, decode_responses=True),
+        prefix=settings.plane_webhook_redis_prefix,
+    )
+
+
+def _dispatch_failure_type(result: object) -> str | None:
+    if isinstance(result, dict):
+        if result.get("ok") is False:
+            failure_type = result.get("failure_type")
+            return failure_type if failure_type in {"retryable", "permanent"} else "retryable"
+        return None
+    ok = getattr(result, "ok", True)
+    if ok is False:
+        failure_type = getattr(result, "failure_type", None)
+        return failure_type if failure_type in {"retryable", "permanent"} else "retryable"
+    return None
+
+
+def _dispatch_failure_message(result: object, fallback: str) -> str:
+    if isinstance(result, dict):
+        return str(result.get("detail") or result.get("error_code") or fallback)
+    return str(getattr(result, "detail", None) or getattr(result, "error_code", None) or fallback)
+
+
+def _retry_after(settings: GatewaySettings, attempt: int) -> datetime:
+    delay = min(
+        settings.plane_webhook_retry_base_seconds * (2 ** max(attempt - 1, 0)),
+        settings.plane_webhook_retry_max_seconds,
+    )
+    jitter = random.uniform(0, delay * 0.2)
+    return datetime.now(timezone.utc) + timedelta(seconds=delay + jitter)
 
 
 def _extract_plane_actor_id(payload: dict) -> str | None:
@@ -316,10 +371,10 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
     @router.get("/plane/webhook/queue")
     async def plane_webhook_queue_status() -> PlaneWebhookQueueStatusResponse:
         try:
-            queue_status = FilePlaneWebhookQueue(
-                queue_path=settings.plane_webhook_queue_path,
-                dedupe_path=settings.plane_webhook_dedupe_path,
-            ).status(configured=bool(settings.plane_webhook_secret))
+            queue_status = _plane_webhook_queue(settings).status(
+                configured=bool(settings.plane_webhook_secret),
+                n8n_dispatch_configured=bool(settings.n8n_plane_webhook_dispatch_path),
+            )
         except PlaneWebhookQueueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -331,10 +386,7 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
     async def plane_webhook_dispatch(
         limit: int = Query(default=10, ge=1, le=100),
     ) -> PlaneWebhookDispatchResponse:
-        queue = FilePlaneWebhookQueue(
-            queue_path=settings.plane_webhook_queue_path,
-            dedupe_path=settings.plane_webhook_dedupe_path,
-        )
+        queue = _plane_webhook_queue(settings)
         try:
             pending_events = queue.pending_events(limit=limit)
         except PlaneWebhookQueueError as exc:
@@ -348,8 +400,36 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             delivery_id = event.get("delivery_id")
             if not isinstance(delivery_id, str):
                 continue
+            attempt = int(event.get("retry_attempt", 0) or 0) + 1
             try:
-                await n8n_client().forward_plane_webhook_event(event)
+                dispatch_result = await n8n_client().forward_plane_webhook_event(event)
+                failure_type = _dispatch_failure_type(dispatch_result)
+                if failure_type == "permanent":
+                    queue.mark_failed(
+                        delivery_id,
+                        PlaneWebhookFailure(
+                            category="permanent",
+                            message=_dispatch_failure_message(dispatch_result, "permanent dispatch failure"),
+                        ),
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"plane webhook dispatch permanent failure for {delivery_id}",
+                    )
+                if failure_type == "retryable":
+                    category = "permanent" if attempt >= settings.plane_webhook_max_attempts else "retryable"
+                    queue.mark_failed(
+                        delivery_id,
+                        PlaneWebhookFailure(
+                            category=category,
+                            message=_dispatch_failure_message(dispatch_result, "retryable dispatch failure"),
+                            retry_after=_retry_after(settings, attempt) if category == "retryable" else None,
+                        ),
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"plane webhook dispatch failed for {delivery_id}",
+                    )
                 queue.mark_dispatched(delivery_id)
             except PlaneWebhookQueueError as exc:
                 raise HTTPException(
@@ -357,16 +437,41 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
                     detail="plane webhook queue is unavailable",
                 ) from exc
             except httpx.TimeoutException as exc:
+                queue.mark_failed(
+                    delivery_id,
+                    PlaneWebhookFailure(
+                        category="retryable",
+                        message="n8n dispatch timed out",
+                        retry_after=_retry_after(settings, attempt),
+                    ),
+                )
                 raise HTTPException(
                     status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                     detail=f"plane webhook dispatch timed out for {delivery_id}",
                 ) from exc
             except httpx.HTTPStatusError as exc:
+                category = "retryable" if exc.response.status_code >= 500 else "permanent"
+                queue.mark_failed(
+                    delivery_id,
+                    PlaneWebhookFailure(
+                        category=category,
+                        message=f"n8n returned {exc.response.status_code}",
+                        retry_after=_retry_after(settings, attempt) if category == "retryable" else None,
+                    ),
+                )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"plane webhook dispatch returned {exc.response.status_code} for {delivery_id}",
                 ) from exc
             except httpx.HTTPError as exc:
+                queue.mark_failed(
+                    delivery_id,
+                    PlaneWebhookFailure(
+                        category="retryable",
+                        message="n8n dispatch failed",
+                        retry_after=_retry_after(settings, attempt),
+                    ),
+                )
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"plane webhook dispatch failed for {delivery_id}",
@@ -385,6 +490,24 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             pending_count=remaining_pending,
             delivery_ids=dispatched_delivery_ids,
         )
+
+    @router.post("/plane/webhook/replay")
+    async def plane_webhook_replay(
+        delivery_id: str = Query(min_length=1),
+    ) -> PlaneWebhookReplayResponse:
+        try:
+            replayed_event = _plane_webhook_queue(settings).replay_dead_letter(delivery_id)
+        except PlaneWebhookQueueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="plane webhook queue is unavailable",
+            ) from exc
+        if replayed_event is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="plane webhook dead-letter delivery was not found",
+            )
+        return PlaneWebhookReplayResponse(replayed=True, delivery_id=delivery_id)
 
     return router
 
@@ -415,16 +538,22 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
             )
 
         try:
-            payload = await request.json()
+            raw_body = await request.body()
+            payload = json.loads(raw_body)
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="invalid plane webhook json",
             ) from exc
+        if not isinstance(payload, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="invalid plane webhook json",
+            )
 
         expected_signature = hmac.new(
             settings.plane_webhook_secret.encode("utf-8"),
-            msg=json.dumps(payload).encode("utf-8"),
+            msg=raw_body,
             digestmod=hashlib.sha256,
         ).hexdigest()
         if not hmac.compare_digest(expected_signature, x_plane_signature):
@@ -433,21 +562,37 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
                 detail="invalid plane signature",
             )
 
-        correlation_id = f"plane:{x_plane_delivery}"
-        data = payload.get("data") if isinstance(payload, dict) else None
-        resource_id = data.get("id") if isinstance(data, dict) else None
-        actor_id = _extract_plane_actor_id(payload) if isinstance(payload, dict) else None
-        normalized_event = {
-            "correlation_id": correlation_id,
-            "delivery_id": x_plane_delivery,
-            "event": payload.get("event") if isinstance(payload, dict) else None,
-            "action": payload.get("action") if isinstance(payload, dict) else None,
-            "resource_id": str(resource_id) if resource_id is not None else None,
-            "webhook_id": payload.get("webhook_id") if isinstance(payload, dict) else None,
-        }
-        normalized_event.update(_extract_safe_work_item_metadata(data))
-        if actor_id:
-            normalized_event["actor_id"] = actor_id
+        normalized_event = normalize_plane_webhook_event(
+            payload,
+            delivery_id=x_plane_delivery,
+            raw_body=raw_body,
+            received_at=datetime.now(timezone.utc),
+        )
+        classification = classify_plane_event(payload)
+        correlation_id = str(normalized_event["correlation_id"])
+        actor_id = _extract_plane_actor_id(payload)
+        if not classification.supported:
+            logger.info(
+                "plane webhook ignored",
+                extra={
+                    "correlation_id": correlation_id,
+                    "plane_delivery_id": x_plane_delivery,
+                    "plane_event": normalized_event["event"],
+                    "plane_action": normalized_event["action"],
+                    "plane_resource_id": normalized_event["resource_id"],
+                    "plane_webhook_id": normalized_event["webhook_id"],
+                    "ignored": True,
+                    "ignored_reason": classification.ignored_reason,
+                },
+            )
+            return PlaneWebhookAck(
+                accepted=True,
+                duplicate=False,
+                queued=False,
+                ignored=True,
+                ignored_reason=classification.ignored_reason,
+                **normalized_event,
+            )
         if actor_id and actor_id in settings.plane_webhook_ignored_actor_id_set():
             log_extra = {
                 "correlation_id": correlation_id,
@@ -467,15 +612,13 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
                 accepted=True,
                 duplicate=False,
                 queued=False,
+                ignored=False,
                 suppressed=True,
                 suppressed_reason="ignored_actor",
                 **normalized_event,
             )
         try:
-            queued = FilePlaneWebhookQueue(
-                queue_path=settings.plane_webhook_queue_path,
-                dedupe_path=settings.plane_webhook_dedupe_path,
-            ).enqueue(delivery_id=x_plane_delivery, event=normalized_event)
+            enqueue_result = _plane_webhook_queue(settings).enqueue(normalized_event)
         except PlaneWebhookQueueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -489,20 +632,21 @@ def build_plane_webhook_router(settings: GatewaySettings) -> APIRouter:
             "plane_resource_id": normalized_event["resource_id"],
             "plane_webhook_id": normalized_event["webhook_id"],
             "plane_actor_id": actor_id,
-            "queued": queued,
-            "duplicate": not queued,
+            "queued": enqueue_result.queued,
+            "duplicate": enqueue_result.duplicate,
             "suppressed": False,
             "suppressed_reason": None,
         }
-        if queued:
+        if enqueue_result.queued:
             logger.info("plane webhook queued", extra=log_extra)
         else:
             logger.info("plane webhook duplicate suppressed", extra=log_extra)
 
         return PlaneWebhookAck(
             accepted=True,
-            duplicate=not queued,
-            queued=queued,
+            duplicate=enqueue_result.duplicate,
+            queued=enqueue_result.queued,
+            ignored=False,
             **normalized_event,
         )
 

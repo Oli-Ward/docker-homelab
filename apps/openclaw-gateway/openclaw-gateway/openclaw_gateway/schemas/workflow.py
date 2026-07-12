@@ -25,6 +25,9 @@ class PlaneWebhookAck(BaseModel):
     delivery_id: str
     event: str | None = None
     action: str | None = None
+    event_type: str | None = None
+    schema_version: str | None = None
+    raw_payload_hash: str | None = None
     resource_id: str | None = None
     webhook_id: str | None = None
     actor_id: str | None = None
@@ -39,6 +42,8 @@ class PlaneWebhookAck(BaseModel):
     label_names: list[str] | None = None
     queued: bool
     duplicate: bool
+    ignored: bool = False
+    ignored_reason: str | None = None
     suppressed: bool | None = None
     suppressed_reason: str | None = None
 
@@ -52,6 +57,13 @@ class PlaneWebhookQueueStatusResponse(BaseModel):
     dispatched_count: int
     pending_count: int
     malformed_count: int
+    retry_count: int = 0
+    dead_letter_count: int = 0
+    last_successful_dispatch_at: Any | None = None
+    last_dead_letter_delivery_id: str | None = None
+    redis_configured: bool = False
+    redis_ready: bool | None = None
+    n8n_dispatch_configured: bool = False
     last_delivery_id: str | None = None
     last_correlation_id: str | None = None
 
@@ -61,3 +73,8 @@ class PlaneWebhookDispatchResponse(BaseModel):
     pending_count: int
     delivery_ids: list[str]
     failed_delivery_id: str | None = None
+
+
+class PlaneWebhookReplayResponse(BaseModel):
+    replayed: bool
+    delivery_id: str
