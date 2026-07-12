@@ -61,9 +61,12 @@ Authorization: Bearer <token>
 Plane workflow endpoints call the self-hosted Plane API with a Plane API key stored only in the gateway runtime environment:
 
 ```env
-PLANE_API_BASE_URL=http://192.168.1.103:8085
+PLANE_API_BASE_URL=https://plane.home.lab
 PLANE_API_KEY=<stored outside Git>
 PLANE_WORKSPACE_SLUG=<workspace slug>
+HOMELAB_CA_CERT_HOST_PATH=/home/oli/docker/ssl/home-lab-root.crt
+SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt
+REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/home-lab-root.crt
 PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl
@@ -71,6 +74,11 @@ PLANE_WEBHOOK_DEDUPE_PATH=<optional sidecar path; defaults next to queue>
 PLANE_WEBHOOK_IGNORED_ACTOR_IDS=<optional comma-separated Plane user IDs>
 N8N_PLANE_WEBHOOK_DISPATCH_PATH=/webhook/plane-openclaw-dispatch
 ```
+
+Because `PLANE_API_BASE_URL` uses the internal HTTPS hostname, the gateway
+container must trust the homelab CA. Compose mounts only the public root CA
+certificate read-only; do not mount Nginx Proxy Manager private keys or generated
+certificate directories into this container.
 
 The gateway authenticates to Plane with `X-API-Key` through the local `openclaw_plane_sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key, raw upstream error bodies, or SDK `raw` payload fields. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
 
@@ -465,9 +473,12 @@ RADARR_URL=http://radarr:7878
 RADARR_API_KEY=change-me
 RYOT_URL=http://ryot:8000
 RYOT_ADMIN_ACCESS_TOKEN=change-me
-PLANE_API_BASE_URL=http://192.168.1.103:8085
+PLANE_API_BASE_URL=https://plane.home.lab
 PLANE_API_KEY=change-me
 PLANE_WORKSPACE_SLUG=your-plane-workspace
+HOMELAB_CA_CERT_HOST_PATH=/home/oli/docker/ssl/home-lab-root.crt
+SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt
+REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/home-lab-root.crt
 PLANE_DEFAULT_PROJECT_ID=
 PLANE_WEBHOOK_SECRET=change-me
 PLANE_WEBHOOK_QUEUE_PATH=/app/state/plane-webhooks/events.jsonl

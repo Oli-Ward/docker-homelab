@@ -322,12 +322,14 @@ services:
 
   migrator:
     image: makeplane/backend-commercial:${APP_RELEASE_VERSION:-v2.6.3}
+    profiles:
+      - migration
     command: ./bin/docker-entrypoint-migrator.sh
     environment:
       <<: [*plane, *app-env, *pg-env, *redis-env, *rabbitmq-env, *docstore-env, *opensearch-env]
     restart: "no"
     deploy:
-      replicas: 1
+      replicas: ${MIGRATOR_REPLICAS:-0}
     volumes:
       - /home/oli/docker/ssl/home-lab-root.crt:/usr/local/share/ca-certificates/home-lab-root.crt:ro
       - ${APPDATA_ROOT}/plane/logs/migrator:/code/plane/logs

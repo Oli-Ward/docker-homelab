@@ -54,7 +54,7 @@ class PlaneClient:
 
     async def list_labels(self, project_id: str) -> PlaneLabelsResponse:
         payload = await self._get(
-            f"/api/v1/workspaces/{self._workspace_slug}/projects/{project_id}/work-item-labels/"
+            f"/api/v1/workspaces/{self._workspace_slug}/projects/{project_id}/labels/"
         )
         return PlaneLabelsResponse(items=[self._label(item) for item in self._items(payload)])
 

@@ -87,6 +87,33 @@ async def test_plane_list_project_work_items_handles_list_payload():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_plane_list_labels_uses_project_labels_endpoint():
+    route = respx.get(
+        "http://plane:8085/api/v1/workspaces/openclaw/projects/project-1/labels/"
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "id": "label-openclaw",
+                        "name": "openclaw",
+                    }
+                ]
+            },
+        )
+    )
+
+    result = await make_client().list_labels(project_id="project-1")
+
+    assert route.called
+    assert route.calls.last.request.headers["X-API-Key"] == "plane-secret"
+    assert result.items[0].id == "label-openclaw"
+    assert result.items[0].name == "openclaw"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_plane_create_work_item_posts_narrow_payload():
     route = respx.post(
         "http://plane:8085/api/v1/workspaces/openclaw/projects/project-1/work-items/"

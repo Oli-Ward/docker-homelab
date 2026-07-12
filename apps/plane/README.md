@@ -32,9 +32,17 @@ The default deployment intentionally excludes optional services behind Compose p
 ```text
 email       profile: email
 pi-*        profile: pi
+migrator    profile: migration
 ```
 
-With the default `.env`, Plane should run 18 services. Enable optional services later by setting `COMPOSE_PROFILES=pi,email` and changing their replica counts from `0` to the desired count.
+With the default `.env`, Plane should run 17 long-running services. The main
+Plane migrator is a successful one-shot job; keeping it in the default service
+set makes Komodo report the stack as unhealthy after the migrator exits with
+code `0`. Run migrations explicitly during a maintenance window by temporarily
+setting `COMPOSE_PROFILES=migration` and `MIGRATOR_REPLICAS=1`, deploying
+through Komodo, confirming the migrator exits `0`, then returning to the default
+profile. Enable optional services later by setting `COMPOSE_PROFILES=pi,email`
+and changing their replica counts from `0` to the desired count.
 
 The current NPM route can continue to forward to the host's Plane proxy port:
 
