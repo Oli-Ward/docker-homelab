@@ -1,0 +1,23 @@
+[project]
+name = "openclaw-plane-sdk"
+version = "0.1.0"
+description = "Reusable Plane API client for OpenClaw services"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.28",
+  "pydantic>=2",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+  "pytest-asyncio>=0.25",
+  "respx>=0.22",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["openclaw_plane_sdk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
