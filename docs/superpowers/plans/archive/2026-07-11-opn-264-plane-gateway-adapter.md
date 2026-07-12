@@ -1,5 +1,7 @@
 # Plane Gateway Adapter Implementation Plan
 
+> **Archived 2026-07-12:** This plan is stale after review against Linear OPN-264. The gateway adapter slice landed, OPN-264 is now umbrella-only, and remaining REST adapter hardening belongs to OPN-275. Keep this file as historical implementation context, not as an active plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a tested Plane API adapter and protected gateway routes that OpenClaw can reuse for Plane ticket search, read, create, update, comment, and metadata lookup.

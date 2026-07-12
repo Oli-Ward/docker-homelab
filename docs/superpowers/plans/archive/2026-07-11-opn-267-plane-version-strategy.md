@@ -1,5 +1,7 @@
 # OPN-267 Plane Version Strategy Implementation Plan
 
+> **Archived 2026-07-12:** This completed OPN-267 slice is no longer an active plan. Linear OPN-267 is Done; keep this file as historical implementation evidence for the Plane image version strategy.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make Plane Commercial app image updates controlled through the existing `APP_RELEASE_VERSION` env variable and document the safe update flow without changing the current default version.

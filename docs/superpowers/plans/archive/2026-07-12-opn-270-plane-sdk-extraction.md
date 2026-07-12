@@ -1,5 +1,7 @@
 # OPN-270 Plane SDK Extraction Implementation Plan
 
+> **Archived 2026-07-12:** This completed standalone SDK package extraction plan is no longer active. Linear OPN-270 is Done; keep this file as historical implementation evidence for `packages/openclaw-plane-sdk` and the gateway path dependency.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract `openclaw_plane_sdk` from the gateway project into a standalone installable Python package at `packages/openclaw-plane-sdk/`, consumed by the gateway as a local uv path dependency.

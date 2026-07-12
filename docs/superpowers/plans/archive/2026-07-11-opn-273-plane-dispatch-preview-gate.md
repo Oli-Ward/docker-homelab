@@ -1,5 +1,7 @@
 # OPN-273 Plane Dispatch Preview Gate Implementation Plan
 
+> **Archived 2026-07-12:** This completed prerequisite slice is no longer the active OPN-273 plan. Linear OPN-273 still owns the full Ready for Agent -> OpenClaw -> Codex -> PR -> Plane write-back workflow, including state transitions, retries, PR links, and failure updates. Keep this file as historical implementation evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Gate the repo-managed Plane n8n dispatch path with the read-only pickup preview so non-ready events do not SSH to OpenClaw, while preserving safe Plane metadata needed for routing.

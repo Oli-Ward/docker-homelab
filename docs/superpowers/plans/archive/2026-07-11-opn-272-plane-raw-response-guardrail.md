@@ -1,5 +1,7 @@
 # OPN-272 Plane Raw Response Guardrail Implementation Plan
 
+> **Archived 2026-07-12:** This completed guardrail slice is no longer the active OPN-272 plan. Linear OPN-272 still needs the ChatGPT/Codex Plane tool surface, auth/permissions, desktop/phone smoke, and setup docs. Keep this file as historical implementation evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Prevent gateway Plane API responses from exposing SDK `raw` upstream payload fields to ChatGPT/Codex/OpenClaw callers.

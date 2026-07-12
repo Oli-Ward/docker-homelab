@@ -1,5 +1,7 @@
 # OPN-274 Plane Read-Only n8n Report Implementation Plan
 
+> **Archived 2026-07-12:** This completed first read-only automation slice is no longer the active OPN-274 plan. Linear OPN-274 still owns live n8n Plane automation validation and any future Slack/reporting/write automations with idempotency and rollback docs. Keep this file as historical implementation evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the first repo-managed read-only n8n Plane automation template: a disabled workflow and tested script that summarizes Plane work items through the OpenClaw gateway without writing to Plane.

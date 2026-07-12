@@ -1,5 +1,7 @@
 # OPN-269 Linear to Plane Migration Runbook Implementation Plan
 
+> **Archived 2026-07-12:** This completed OPN-269 documentation slice is no longer an active plan. Linear OPN-269 is Done; keep this file as historical implementation evidence for the Linear-to-Plane migration runbook.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a repo-managed Linear-to-Plane migration runbook that defines safe dry-run, verification, discrepancy, cutover, and rollback gates before Linear stops being the source of truth.

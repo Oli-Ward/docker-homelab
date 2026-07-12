@@ -1,3 +1,5 @@
+> **Archived/stale plan:** This OPN-271 slice plan is preserved for historical context only. Do not implement from this file directly. Use `docs/superpowers/plans/2026-07-12-opn-271-plane-webhook-desired-state.md` as the current implementation plan for OPN-271.
+
 # OPN-271 Plane Webhook Loop Prevention Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

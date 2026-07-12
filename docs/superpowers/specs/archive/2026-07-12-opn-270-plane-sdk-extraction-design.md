@@ -1,5 +1,7 @@
 # OPN-270 Plane SDK Extraction — Design Spec
 
+> **Archived 2026-07-12:** This design spec is implemented. Linear OPN-270 is Done, and `packages/openclaw-plane-sdk` is the current package shape. Keep this file as historical design context, not as an active implementation spec.
+
 **Goal:** Extract `openclaw_plane_sdk` from the gateway project into an independently installable Python package at `packages/openclaw-plane-sdk/`, consumed by the gateway and future services (Plane MCP tool, CLI helpers) as a local path dependency.
 
 ---

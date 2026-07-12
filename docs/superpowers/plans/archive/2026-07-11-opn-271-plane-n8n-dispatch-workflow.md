@@ -1,3 +1,5 @@
+> **Archived/stale plan:** This OPN-271 slice plan is preserved for historical context only. Do not implement from this file directly. Use `docs/superpowers/plans/2026-07-12-opn-271-plane-webhook-desired-state.md` as the current implementation plan for OPN-271.
+
 # OPN-271 Plane n8n Dispatch Workflow Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use test-driven-development for script behavior before implementation. Keep this limited to repo-managed n8n workflow assets; live import/enablement remains an external deployment step.

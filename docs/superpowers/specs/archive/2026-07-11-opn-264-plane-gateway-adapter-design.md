@@ -1,5 +1,7 @@
 # OPN-264 Plane Gateway Adapter Design
 
+> **Archived 2026-07-12:** This design spec is implemented and superseded by the current gateway/SDK split plus Linear OPN-275's REST adapter hardening scope. Keep this file as historical design context, not as the active Plane gateway spec.
+
 ## Scope
 
 Build the first reusable Plane integration layer inside `apps/openclaw-gateway`. This slice does not replace Linear automation end-to-end yet. It creates the shared, tested API adapter that later Plane webhooks, ChatGPT/Codex tools, and OpenClaw write-back workflows can use.

@@ -1,5 +1,7 @@
 # OPN-270 Plane SDK Extraction Implementation Plan
 
+> **Archived 2026-07-12:** This completed first SDK extraction slice is superseded by the later standalone package extraction plan. Linear OPN-270 is Done; keep this file as historical context for the intermediate gateway-local `openclaw_plane_sdk` step.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extract the existing gateway-local Plane API client and Plane models into a reusable `openclaw_plane_sdk` package inside the gateway project, while preserving the gateway's current routes and response contracts.

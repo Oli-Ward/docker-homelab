@@ -1,5 +1,7 @@
 # OPN-273 Plane Event Metadata Implementation Plan
 
+> **Archived 2026-07-12:** This completed prerequisite slice is no longer the active OPN-273 plan. Linear OPN-273 still owns the full Ready for Agent -> OpenClaw -> Codex -> PR -> Plane write-back workflow, including state transitions, retries, PR links, and failure updates. Keep this file as historical implementation evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Propagate safe normalized Plane work-item metadata through webhook queueing, n8n dispatch, and the OpenClaw sender so downstream agent pickup can evaluate `Ready for Agent` events without raw Plane payload access.

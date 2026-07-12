@@ -1,5 +1,7 @@
 # Plane Home Lab Access Implementation Plan
 
+> **Archived 2026-07-12:** This plan is stale after review against Linear OPN-264. OPN-264 is now an umbrella/cutover-readiness ticket; Plane install, access, and live readiness work lives in child tickets and diagnostics. Keep this file as historical implementation context, not as an active plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Expose the existing Plane Commercial Edition install at `https://plane.home.lab`, keep Plane-native login working for desktop/mobile/API use, and add it to Homepage.
