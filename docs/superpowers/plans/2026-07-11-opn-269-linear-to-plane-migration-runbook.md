@@ -60,7 +60,7 @@ rg -n "(password|secret|token|api[_-]?key|BEGIN (RSA|OPENSSH|PRIVATE))" docs/mig
 
 Expected: whitespace check exits 0; secret scan returns only policy wording or placeholder references.
 
-- [ ] **Step 2: Commit and update Linear**
+- [x] **Step 2: Commit and update Linear**
 
 Commit with:
 
