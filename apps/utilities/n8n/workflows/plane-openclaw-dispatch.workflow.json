@@ -78,6 +78,18 @@
               "type": "string"
             },
             {
+              "id": "d9b2ce0a-8b4a-40a7-b115-5ef5aa5159c2",
+              "name": "team",
+              "value": "={{ $json.body.team }}",
+              "type": "string"
+            },
+            {
+              "id": "2866d5a3-0d80-407a-bbce-2167c539517d",
+              "name": "source_identifier",
+              "value": "={{ $json.body.source_identifier }}",
+              "type": "string"
+            },
+            {
               "id": "ca218d9c-4a9e-4263-89ec-20d77c144bf3",
               "name": "sequence_id",
               "value": "={{ $json.body.sequence_id }}",

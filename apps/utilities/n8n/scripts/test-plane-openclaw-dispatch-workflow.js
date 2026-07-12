@@ -40,6 +40,8 @@ const assignmentNames = payloadBuilder.parameters.assignments.assignments.map(
 assert.deepEqual(
   [
     "project_id",
+    "team",
+    "source_identifier",
     "sequence_id",
     "name",
     "state_id",

@@ -101,6 +101,11 @@ def _extract_safe_work_item_metadata(data: object) -> dict[str, object]:
     for source_key, target_key in (
         ("project_id", "project_id"),
         ("project", "project_id"),
+        ("team", "team"),
+        ("team_name", "team"),
+        ("teamName", "team"),
+        ("source_identifier", "source_identifier"),
+        ("sourceIdentifier", "source_identifier"),
         ("name", "name"),
         ("state_id", "state_id"),
         ("state", "state_id"),

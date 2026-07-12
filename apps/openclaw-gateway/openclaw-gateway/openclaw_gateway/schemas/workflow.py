@@ -28,7 +28,9 @@ class PlaneWebhookAck(BaseModel):
     resource_id: str | None = None
     webhook_id: str | None = None
     actor_id: str | None = None
+    team: str | None = None
     project_id: str | None = None
+    source_identifier: str | None = None
     sequence_id: int | None = None
     name: str | None = None
     state_id: str | None = None

@@ -60,7 +60,9 @@ class N8nClient:
             "actor_id": event.get("actor_id"),
         }
         for field_name in (
+            "team",
             "project_id",
+            "source_identifier",
             "sequence_id",
             "name",
             "state_id",

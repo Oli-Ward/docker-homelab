@@ -24,7 +24,7 @@
 - Add: `diagnostics/build-lanes/2026-07-12-plane-cutover-readiness.md`
 - Add: `diagnostics/build-lanes/2026-07-12-linear-plane-missing-active-team-issues.tsv`
 
-- [ ] **Step 1: Run focused tests and config checks**
+- [x] **Step 1: Run focused tests and config checks**
 
 Run:
 
@@ -37,7 +37,7 @@ docker compose -f apps/plane/compose.yml --env-file apps/plane/example.env confi
 git diff --check
 ```
 
-- [ ] **Step 2: Commit only scoped files**
+- [x] **Step 2: Commit only scoped files**
 
 Commit the validated checkpoint with:
 
@@ -51,28 +51,32 @@ git commit -m "OPN-273: record Plane integration readiness"
 **Files:**
 - Modify: `diagnostics/build-lanes/2026-07-12-plane-cutover-readiness.md`
 
-- [ ] **Step 1: Inspect live route and env presence without printing secrets**
+- [x] **Step 1: Inspect live route and env presence without printing secrets**
 
 Check gateway, n8n, and OpenClaw dispatch readiness using Docker inspection and redacted env-presence checks only.
 
-- [ ] **Step 2: Exercise the gateway to n8n to OpenClaw path**
+- [x] **Step 2: Exercise the gateway to n8n to OpenClaw path**
 
 Use an existing non-critical Plane dispatch event or create a synthetic signed Plane-format event that is `Ready for Agent` and has a `repo:<name>` label. Verify the event reaches n8n, SSHes to OpenClaw, and produces a dry-run or claim result without starting a real Codex run.
 
-- [ ] **Step 3: Verify duplicate suppression**
+Result: gateway ingress accepted and queued a synthetic event, but full gateway dispatch exposed a contract gap. The downstream live n8n sender reached OpenClaw and returned `OPN-273: ready: dry-run` after the payload included `team` and `source_identifier`.
+
+- [x] **Step 3: Verify duplicate suppression**
 
 Repeat the same delivery or claim key and verify OpenClaw reports duplicate behavior rather than creating a second active claim.
+
+Result: direct OpenClaw `--claim --json` returned `status: claimed` on first run and `status: duplicate` on the second run for the same claim key.
 
 ### Task 3: Record Evidence And Update Linear
 
 **Files:**
 - Modify: `diagnostics/build-lanes/2026-07-12-plane-cutover-readiness.md`
 
-- [ ] **Step 1: Append smoke evidence**
+- [x] **Step 1: Append smoke evidence**
 
 Record timestamp, commands, redacted evidence, outcome, and remaining blockers in the readiness report.
 
-- [ ] **Step 2: Commit the smoke evidence**
+- [x] **Step 2: Commit the smoke evidence**
 
 Run focused doc checks, then commit with:
 
@@ -81,6 +85,6 @@ git add diagnostics/build-lanes/2026-07-12-plane-cutover-readiness.md
 git commit -m "OPN-273: record Plane pickup smoke evidence"
 ```
 
-- [ ] **Step 3: Update Linear**
+- [x] **Step 3: Update Linear**
 
 Comment on OPN-273 with the commit hashes, verification run, smoke result, and remaining follow-ups.

@@ -186,16 +186,76 @@ Supplemental recovery completed:
 
 ## Remaining Blockers
 
-- Komodo's stack health view treats the successful one-shot Plane migrator container as an exited service, making the Plane stack look unhealthy despite the application containers running. Decide whether to adjust the stack definition/status expectations after confirming Plane's recommended migrator lifecycle.
-- OpenClaw-side Plane pickup is not complete. The live n8n/OpenClaw SSH path is
-  configured and reachable, but the configured
-  `tools/bin/openclaw-plane-n8n-dispatch` command is missing in the OpenClaw
-  workspace. Existing OpenClaw helper work covers Linear-era/Plane-compatible
-  preview and queueing, but not the real Plane dispatch command, durable claim
-  store, repo routing, Codex handoff, branch/PR linking, retries, or Plane
-  write-back.
+- OpenClaw-side Plane pickup is partially live. The live n8n/OpenClaw SSH path
+  is configured and reachable, `tools/bin/openclaw-plane-n8n-dispatch` exists
+  in the OpenClaw workspace, dry-run dispatch works, and duplicate claim
+  suppression works. Remaining OpenClaw gaps are Codex handoff application,
+  branch/PR linking, SDK-backed Plane write-back, retry/dead-letter execution
+  around external calls, and a full post-deploy gateway-originated smoke.
+- The Docker repo contract now includes `team` and `source_identifier` in the
+  safe normalized Plane event. The currently running `openclaw-gateway` image
+  and imported n8n workflow were started before that contract fix, so a
+  Komodo redeploy of `openclaw-gateway` and a n8n workflow re-import/enable
+  checkpoint are required before the full gateway queue -> n8n -> OpenClaw path
+  can carry real imported Plane ticket identifiers.
 - ChatGPT/Codex Plane tools are not implemented. The gateway has authenticated Plane routes and audit behavior, but there is no proven MCP/ChatGPT/Codex tool surface for create/search/read/update/comment.
 - Linear should remain the source of truth until the isolated import verification and OpenClaw-side pickup/write-back are complete.
+
+## OPN-273 Pickup Smoke
+
+Timestamp: 2026-07-12T02:22:00Z.
+
+Redacted runtime readiness checks:
+
+- `docker ps` showed `openclaw-gateway`, `n8n`, and Plane containers running.
+- `openclaw-gateway` health returned `HTTP 200`.
+- `n8n` env presence checks reported these variables present without printing
+  values: `MEDIA_GATEWAY_URL`, `MEDIA_GATEWAY_TOKEN`,
+  `PLANE_REPORT_PROJECT_ID`, `OPENCLAW_PLANE_DISPATCH_COMMAND`,
+  `OPENCLAW_SSH_HOST`, `OPENCLAW_SSH_USER`, `OPENCLAW_SSH_KEY_PATH`, and
+  `OPENCLAW_WORKSPACE`.
+- `openclaw-gateway` env presence checks reported Plane API, webhook, n8n, and
+  CA bundle variables present without printing values.
+
+Gateway-originated smoke attempt:
+
+- Queue before test: `pending_count: 0`.
+- Synthetic signed Plane-format webhook delivery
+  `opn273-smoke-20260712T021709Z` was accepted and queued.
+- Dispatch failed because the live normalized event lacked
+  `source_identifier`, then after sender compatibility work exposed that it
+  also lacked `team`.
+- Root cause: OpenClaw's real dispatch parser requires a valid OPN
+  `source_identifier` and `team`, while the repo-managed gateway/n8n contract
+  previously forwarded only Plane resource metadata.
+- Durable repo fix: add `team` and `source_identifier` to the safe normalized
+  event contract across gateway schema, webhook extraction, n8n forwarding,
+  workflow artifact, sender script, tests, and docs.
+- Cleanup: the failed synthetic delivery was marked dispatched after diagnosis
+  so the queue returned to `pending_count: 0`.
+
+Downstream live smoke:
+
+- Direct live n8n sender invocation with a normalized payload containing
+  `team: Openclaw`, `source_identifier: OPN-273`, `Ready for Agent`, and
+  `repo:openclaw` reached OpenClaw over SSH and returned:
+  `OPN-273: ready: dry-run`.
+- Durable claim duplicate check used
+  `tools/bin/openclaw-plane-n8n-dispatch --event-file <payload> --claim --json`
+  twice with the same claim key:
+  - first result: `status: claimed`, `claimed: true`, branch
+    `codex/opn-273-smoke-opn-273-plane-claim-duplicate-check`, command
+    `/goal pickup 273 until finished`;
+  - second result: `status: duplicate`, `claimed: false`, reason
+    `duplicate claim: plane:openclaw:opn273-smoke-project:opn273-smoke-ticket-20260712T022200Z:2026-07-12T02:22:00Z`.
+
+Conclusion:
+
+- The live n8n -> OpenClaw dry-run and duplicate-claim path is proven.
+- The full gateway queue -> n8n -> OpenClaw path is not proven with the new
+  contract until `openclaw-gateway` is redeployed through Komodo and the live
+  n8n workflow is re-imported or updated to include `team` and
+  `source_identifier`.
 
 ## Cutover Plan
 

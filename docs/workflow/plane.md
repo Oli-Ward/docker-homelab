@@ -277,7 +277,9 @@ metadata when Plane provides it:
   "resource_id": "work-item-uuid",
   "webhook_id": "webhook-uuid",
   "actor_id": "plane-user-uuid",
+  "team": "Openclaw",
   "project_id": "project-uuid",
+  "source_identifier": "OPN-273",
   "sequence_id": 273,
   "name": "Ready for agent",
   "state_id": "state-uuid",
@@ -289,8 +291,9 @@ metadata when Plane provides it:
 
 Do not add descriptions, comments, raw payload fragments, webhook signatures,
 API keys, or arbitrary nested Plane objects to the normalized event. Downstream
-agent pickup can use the allowlisted `state_name`, `label_names`, `project_id`,
-and sequence metadata for dry-run eligibility decisions.
+agent pickup can use the allowlisted `state_name`, `label_names`, `team`,
+`project_id`, `source_identifier`, and sequence metadata for dry-run eligibility
+decisions.
 
 The repo-managed pickup preview helper is:
 
