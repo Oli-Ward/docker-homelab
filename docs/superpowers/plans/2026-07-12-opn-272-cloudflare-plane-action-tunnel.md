@@ -4,7 +4,7 @@
 
 **Goal:** Expose the ChatGPT Plane Action through the existing remotely managed Cloudflare Tunnel hostname route, limited to approved Plane gateway routes.
 
-**Architecture:** Reuse the installed `cloudflared.service` on `media-homelab`; it is a remotely managed tunnel connector, so route configuration belongs in the Cloudflare Zero Trust dashboard rather than a repo-managed `cloudflared` Docker stack or local `config.yml`. The dedicated hostname, for example `plane-api.<your-domain>`, should route only `/v1/workflow/plane/*` to the gateway's media-host origin. Gateway bearer authentication remains the application auth boundary; Cloudflare provides public TLS, DNS, route filtering, and rate limiting without interactive Cloudflare Access.
+**Architecture:** Reuse the installed `cloudflared.service` on `media-homelab`; it is a remotely managed tunnel connector, so route configuration belongs in the Cloudflare Zero Trust dashboard rather than a repo-managed `cloudflared` Docker stack or local `config.yml`. The dedicated hostname `plane-api.agentlobster.uk` should route only `/v1/workflow/plane/*` to the gateway's media-host origin. Gateway bearer authentication remains the application auth boundary; Cloudflare provides public TLS, DNS, route filtering, and rate limiting without interactive Cloudflare Access.
 
 **Tech Stack:** systemd `cloudflared`, Cloudflare Zero Trust remotely managed tunnel routes, OpenAPI 3.1, gateway bearer auth.
 
@@ -16,7 +16,7 @@ Linear issue: `OPN-272` - `Implement ChatGPT/Codex Plane Integration`
 
 Approved ingress requirements:
 
-- Dedicated public HTTPS hostname, for example `plane-api.<your-domain>`.
+- Dedicated public HTTPS hostname: `plane-api.agentlobster.uk`.
 - No `.home.lab`, raw gateway host port, or origin IP exposure for ChatGPT Actions.
 - Public tunnel ingress is restricted to `/v1/workflow/plane/*`.
 - Gateway bearer authentication stays enabled.
@@ -27,7 +27,7 @@ Approved ingress requirements:
 ## File Structure
 
 - Modify `apps/openclaw-gateway/chatgpt-actions/plane-openapi.yaml`
-  - Replace the private `.home.lab` server URL with the public Action hostname placeholder.
+  - Replace the private `.home.lab` server URL with the public Action hostname.
 - Modify `apps/openclaw-gateway/chatgpt-actions/README.md`
   - Replace the previous NPM/Auth/local-tunnel fallback with the approved remotely managed Cloudflare Tunnel path.
 - Modify `README.md`
@@ -37,7 +37,7 @@ Approved ingress requirements:
 
 - [x] Verify the existing systemd `cloudflared` connector is active and has successful tunnel connections.
 - [x] Verify the gateway origin reachable from media. Current live check: `http://192.168.1.103:8088/health` returns `200`; `http://127.0.0.1:8088/health` refuses because the gateway port is bound to the LAN IP.
-- [ ] Configure the Cloudflare Zero Trust Public hostname route on the existing tunnel.
+- [x] Configure the Cloudflare Zero Trust Public hostname route on the existing tunnel.
 - [x] Update the Action OpenAPI server URL and setup docs.
 - [x] Validate OpenAPI YAML parsing and confirm no `.home.lab` Action server remains.
 - [x] Record remaining manual Cloudflare/Komodo/ChatGPT steps in Linear as `OPN-277`.
@@ -67,16 +67,16 @@ servers = [server["url"] for server in spec.get("servers", [])]
 assert not any(".home.lab" in url for url in servers), servers
 print("SERVERS", ",".join(servers))
 PY
-rg -n "plane-api.example.com|/v1/workflow/plane" apps/openclaw-gateway/chatgpt-actions README.md
+rg -n "plane-api.agentlobster.uk|/v1/workflow/plane" apps/openclaw-gateway/chatgpt-actions README.md
 git diff --check
 ```
 
 Live checks after the Cloudflare Public hostname is configured:
 
 ```bash
-curl -fsS -o /dev/null -w "%{http_code}\n" https://plane-api.<your-domain>/v1/workflow/plane/projects
-curl -fsS -o /dev/null -w "%{http_code}\n" https://plane-api.<your-domain>/health
-curl -fsS -H "Authorization: Bearer <gateway-token>" https://plane-api.<your-domain>/v1/workflow/plane/projects
+curl -fsS -o /dev/null -w "%{http_code}\n" https://plane-api.agentlobster.uk/v1/workflow/plane/projects
+curl -fsS -o /dev/null -w "%{http_code}\n" https://plane-api.agentlobster.uk/health
+curl -fsS -H "Authorization: Bearer <gateway-token>" https://plane-api.agentlobster.uk/v1/workflow/plane/projects
 ```
 
 Expected:
@@ -89,14 +89,13 @@ Expected:
 ## Self-Review
 
 - Spec coverage: The plan covers dedicated public hostname, path restriction, bearer auth, no Access login, rate limiting checklist, OpenAPI update, smokes, and rollback.
-- Placeholder scan: `plane-api.example.com`, `<your-domain>`, and `<gateway-token>` are explicit operator placeholders. No real secret values are present.
+- Placeholder scan: only `<gateway-token>` remains as an explicit operator placeholder. No real secret values are present.
 - Scope check: This is a single infrastructure slice; it does not change Plane, gateway route behavior, or ChatGPT account state directly.
 
 ## 2026-07-13 Update
 
-`OPN-277` now tracks the remaining public gateway endpoint work. The current
-repo state has an active `cloudflared` connector, healthy gateway origin at
-`http://192.168.1.103:8088`, and a placeholder Action server URL of
-`https://plane-api.example.com`. Do not import the Action as production until
-the Cloudflare hostname is configured, verified, and substituted into
-`plane-openapi.yaml`.
+`OPN-277` tracked and closed the public gateway endpoint work. The verified
+Action hostname is `https://plane-api.agentlobster.uk`; unauthenticated Plane
+routes return `401`, unrelated paths are blocked by Cloudflare, authenticated
+reads/writes pass through the gateway bearer token, and desktop plus phone
+ChatGPT Action smokes passed.

@@ -5,8 +5,9 @@ existing `openclaw-gateway` Plane routes through the dedicated Cloudflare Tunnel
 Action hostname and uses the gateway bearer token. Do not give ChatGPT the Plane
 API key.
 
-OPN-277 tracks the remaining public hostname work. Do not import this Action as
-production while `plane-openapi.yaml` still uses `https://plane-api.example.com`.
+OPN-277 tracked the public hostname work. The Action server is
+`https://plane-api.agentlobster.uk`; import it only with gateway bearer auth and
+after confirming the Cloudflare route/rate-limit posture remains in place.
 
 The Action follows the current OpenAI GPT Actions model: import an OpenAPI
 schema, then configure Action authentication in the GPT editor as API Key bearer
@@ -28,8 +29,12 @@ auth. Use the gateway bearer token from the gateway runtime secret store.
    connector token.
 3. In Cloudflare Zero Trust, open the existing tunnel under
    **Networks -> Connectors -> Cloudflare Tunnels**.
-4. Add a Published application / Public hostname, for example
-   `plane-api.<your-domain>`.
+4. Add a Published application / Public hostname:
+
+   ```text
+   plane-api.agentlobster.uk
+   ```
+
 5. Point the service to the gateway's host-reachable origin on media. The
    current gateway binding verified from Docker is:
 
@@ -42,8 +47,8 @@ auth. Use the gateway bearer token from the gateway runtime secret store.
 6. Restrict Cloudflare routing and rules to `/v1/workflow/plane/*`.
 7. Add Cloudflare rate limiting and safe request filtering for the Action
    hostname. Do not use interactive Cloudflare Access on this path.
-8. Replace the placeholder `https://plane-api.example.com` server URL in
-   `plane-openapi.yaml` with the real public hostname.
+8. Confirm `plane-openapi.yaml` uses
+   `https://plane-api.agentlobster.uk`.
 9. Verify unauthenticated public requests to an allowed Plane route return
    `401`, unrelated paths are denied, and an authenticated read succeeds.
 10. Import `plane-openapi.yaml` into the GPT Action builder.
@@ -87,9 +92,9 @@ Stop if any read operation fails.
 Before running ChatGPT smokes, verify the public ingress:
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" https://plane-api.<your-domain>/v1/workflow/plane/projects
-curl -sS -o /dev/null -w "%{http_code}\n" https://plane-api.<your-domain>/health
-curl -sS -H "Authorization: Bearer <gateway-token>" https://plane-api.<your-domain>/v1/workflow/plane/projects
+curl -sS -o /dev/null -w "%{http_code}\n" https://plane-api.agentlobster.uk/v1/workflow/plane/projects
+curl -sS -o /dev/null -w "%{http_code}\n" https://plane-api.agentlobster.uk/health
+curl -sS -H "Authorization: Bearer <gateway-token>" https://plane-api.agentlobster.uk/v1/workflow/plane/projects
 ```
 
 Expected:

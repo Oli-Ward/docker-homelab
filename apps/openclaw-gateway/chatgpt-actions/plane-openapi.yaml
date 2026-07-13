@@ -4,8 +4,8 @@ info:
   version: 0.1.0
   description: Gateway-backed Plane ticket operations for OpenClaw ChatGPT and Codex tools.
 servers:
-  - url: https://plane-api.example.com
-    description: Replace with the dedicated public Cloudflare Tunnel Action hostname before importing.
+  - url: https://plane-api.agentlobster.uk
+    description: Dedicated public Cloudflare Tunnel Action hostname.
 security:
   - gatewayBearer: []
 components:

@@ -4,7 +4,7 @@
 
 **Goal:** Publish and verify the dedicated public HTTPS endpoint used by the ChatGPT Plane Action.
 
-**Architecture:** Reuse the already installed, remotely managed `cloudflared.service` on the media host. The Cloudflare Public Hostname route is configured in Cloudflare Zero Trust, points only the approved Action hostname/path at `http://192.168.1.103:8088`, and leaves gateway bearer authentication as the application boundary. The repo only records the verified hostname in the ChatGPT Action OpenAPI document after public TLS, route restriction, unauthenticated `401`, unrelated-path denial, and authenticated read are proven.
+**Architecture:** Reuse the already installed, remotely managed `cloudflared.service` on the media host. The Cloudflare Public Hostname route is configured in Cloudflare Zero Trust, points only the approved Action hostname/path at `http://192.168.1.103:8088`, and leaves gateway bearer authentication as the application boundary. The current public Action hostname is `https://plane-api.agentlobster.uk`; public TLS, route restriction, unauthenticated `401`, unrelated-path denial, authenticated read/write, and desktop/phone ChatGPT Action smokes have evidence. The exact Cloudflare control-plane rule export is not stored in this repo.
 
 **Tech Stack:** systemd `cloudflared`, Cloudflare Zero Trust Public Hostnames, Cloudflare DNS/WAF/rate limiting, OpenAPI 3.1, `curl`, existing `openclaw-gateway`.
 
@@ -15,15 +15,16 @@
 - Do not read, print, or commit Cloudflare connector tokens, API tokens, gateway bearer tokens, Plane API keys, cookies, private keys, or `.env` files.
 - Do not restart, redeploy, or mutate Docker/Komodo stacks for this ticket unless explicitly instructed.
 - The current gateway origin is `http://192.168.1.103:8088`.
-- The current Action placeholder is `https://plane-api.example.com`.
-- If no concrete public hostname and Cloudflare control-plane access are available, stop and mark the issue blocked with evidence.
+- The current Action hostname is `https://plane-api.agentlobster.uk`.
+- Do not mark OPN-277 done or import the Action as production without authenticated read/write evidence and accepted Cloudflare filtering/rate-limit configuration.
+- If the gateway bearer token is unavailable in the current shell, stop before authenticated smoke and record the blocker with evidence.
 
 ---
 
 ## File Structure
 
 - Modify `apps/openclaw-gateway/chatgpt-actions/plane-openapi.yaml`
-  - Replace `https://plane-api.example.com` with the verified public HTTPS hostname only after live checks pass.
+  - Keep the server URL on the verified public HTTPS hostname `https://plane-api.agentlobster.uk`.
 - Modify `apps/openclaw-gateway/chatgpt-actions/README.md`
   - Record the verified hostname and public smoke commands without secrets.
 - Modify `docs/superpowers/plans/2026-07-13-opn-277-public-gateway-endpoint.md`
@@ -86,13 +87,13 @@ Expected: if this prints `unset`, do not attempt Cloudflare API mutation from th
 - Consumes: a concrete public hostname selected by the operator and Cloudflare Zero Trust access.
 - Produces: a Cloudflare Public Hostname route from that hostname to `http://192.168.1.103:8088`.
 
-- [ ] **Step 1: Confirm a concrete hostname**
+- [x] **Step 1: Confirm a concrete hostname**
 
 Use the hostname selected in Cloudflare Zero Trust. Recommended shape is a subdomain dedicated to this Action, such as `plane-api` under the owned public zone.
 
-Stop if the hostname is unknown. Do not substitute `plane-api.example.com`.
+Selected hostname: `plane-api.agentlobster.uk`.
 
-- [ ] **Step 2: Configure the route in Cloudflare Zero Trust**
+- [x] **Step 2: Configure the route in Cloudflare Zero Trust**
 
 In Cloudflare Zero Trust:
 
@@ -103,14 +104,18 @@ Networks -> Connectors -> Cloudflare Tunnels -> existing media tunnel -> Public 
 Add a Public Hostname with:
 
 ```text
-Hostname: the concrete public hostname from Step 1
+Hostname: plane-api.agentlobster.uk
 Path: /v1/workflow/plane/*
 Service: http://192.168.1.103:8088
 ```
 
 Expected: Cloudflare creates DNS/routing for the hostname on the existing tunnel.
 
-- [ ] **Step 3: Add public filtering**
+2026-07-13 evidence: `GET https://plane-api.agentlobster.uk/v1/workflow/plane/projects`
+reached the gateway through Cloudflare and returned HTTP `401` with
+`{"detail":"Missing bearer token"}`.
+
+- [x] **Step 3: Add public filtering**
 
 Configure Cloudflare rules for the Action hostname:
 
@@ -125,6 +130,12 @@ Do not enable interactive Access/challenge login
 
 Expected: ChatGPT can make server-to-server API calls with bearer auth, while unrelated gateway routes are denied at Cloudflare.
 
+2026-07-13 evidence: `GET https://plane-api.agentlobster.uk/health` returned
+HTTP `403` from Cloudflare, so the unrelated gateway health route is not
+publicly exposed. Rate limiting was accepted as Cloudflare dashboard
+configuration; the exact control-plane rule export was not inspected or
+committed from this shell.
+
 ### Task 3: Public Verification
 
 **Files:**
@@ -134,7 +145,7 @@ Expected: ChatGPT can make server-to-server API calls with bearer auth, while un
 - Consumes: configured public hostname and gateway bearer token from the operator secret store.
 - Produces: public endpoint evidence safe to paste into Linear.
 
-- [ ] **Step 1: Verify local shell variables without printing secrets**
+- [x] **Step 1: Verify local shell variables without printing secrets**
 
 Use a shell where `PUBLIC_HOSTNAME` already contains the verified public
 hostname and `GATEWAY_AUTH_TOKEN` already contains the gateway bearer token from
@@ -147,7 +158,10 @@ the operator secret store. Then run:
 
 Do not echo `GATEWAY_AUTH_TOKEN`.
 
-- [ ] **Step 2: Verify unauthenticated auth boundary**
+Later authenticated smoke evidence was captured without printing the token or
+payload.
+
+- [x] **Step 2: Verify unauthenticated auth boundary**
 
 Run:
 
@@ -157,7 +171,14 @@ curl -sS -o /dev/null -w "%{http_code}\n" "https://${PUBLIC_HOSTNAME}/v1/workflo
 
 Expected: `401`.
 
-- [ ] **Step 3: Verify unrelated-path denial**
+2026-07-13T06:46:03Z result:
+
+```text
+HTTP/2 401
+{"detail":"Missing bearer token"}
+```
+
+- [x] **Step 3: Verify unrelated-path denial**
 
 Run:
 
@@ -167,7 +188,14 @@ curl -sS -o /dev/null -w "%{http_code}\n" "https://${PUBLIC_HOSTNAME}/health"
 
 Expected: `403`, `404`, or another Cloudflare block status that proves `/health` is not publicly exposed.
 
-- [ ] **Step 4: Verify authenticated read**
+2026-07-13T06:46:03Z result:
+
+```text
+HTTP/2 403
+server: cloudflare
+```
+
+- [x] **Step 4: Verify authenticated read**
 
 Run:
 
@@ -176,6 +204,10 @@ curl -sS -H "Authorization: Bearer ${GATEWAY_AUTH_TOKEN}" "https://${PUBLIC_HOST
 ```
 
 Expected: JSON response with an `items` array and no Plane API key or raw upstream payload.
+
+2026-07-13 Linear evidence records an authenticated public read returning HTTP
+`200` with one project through `https://plane-api.agentlobster.uk`, without
+printing the bearer token or raw payload.
 
 ### Task 4: Repo Hostname Update
 
@@ -188,42 +220,44 @@ Expected: JSON response with an `items` array and no Plane API key or raw upstre
 - Consumes: public verification from Task 3.
 - Produces: Action OpenAPI document ready for ChatGPT import.
 
-- [ ] **Step 1: Replace the OpenAPI server URL**
+- [x] **Step 1: Replace the OpenAPI server URL**
 
-In `apps/openclaw-gateway/chatgpt-actions/plane-openapi.yaml`, replace only:
+In `apps/openclaw-gateway/chatgpt-actions/plane-openapi.yaml`, confirm:
 
 ```yaml
-url: https://plane-api.example.com
+url: https://plane-api.agentlobster.uk
 ```
 
-with the verified public HTTPS hostname.
+- [x] **Step 2: Update Action README**
 
-- [ ] **Step 2: Update Action README**
+In `apps/openclaw-gateway/chatgpt-actions/README.md`, record the verified
+hostname and keep the secret-handling warnings.
 
-In `apps/openclaw-gateway/chatgpt-actions/README.md`, replace the production warning about the placeholder with the verified hostname and keep the secret-handling warnings.
-
-- [ ] **Step 3: Validate OpenAPI and docs**
+- [x] **Step 3: Validate OpenAPI and docs**
 
 Run:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 import yaml
 path = 'apps/openclaw-gateway/chatgpt-actions/plane-openapi.yaml'
 with open(path, 'r', encoding='utf-8') as fh:
     spec = yaml.safe_load(fh)
 servers = [server['url'] for server in spec.get('servers', [])]
-assert servers and all(url.startswith('https://') for url in servers), servers
+assert servers == ['https://plane-api.agentlobster.uk'], servers
 assert not any(url.endswith('example.com') for url in servers), servers
 assert not any('.home.lab' in url for url in servers), servers
 assert 'state_id' not in spec['components']['schemas']['PlaneWorkItemCreate']['properties']
 print('SERVERS', ','.join(servers))
+print('PATHS', len(spec.get('paths', {})))
 PY
-rg -n 'plane-api.example.com|\\.home\\.lab' apps/openclaw-gateway/chatgpt-actions
+! rg -n 'plane-api.example.com|\\.home\\.lab' apps/openclaw-gateway/chatgpt-actions
 git diff --check
 ```
 
-Expected: Python assertion prints the verified server, `rg` finds no placeholder or `.home.lab` Action server references, and `git diff --check` exits 0.
+2026-07-13T06:46:43Z result: Python printed
+`SERVERS https://plane-api.agentlobster.uk` and `PATHS 7`, `rg` found no
+placeholder or `.home.lab` Action references, and `git diff --check` exited 0.
 
 ### Task 5: Linear Finish or Block Update
 
@@ -234,7 +268,7 @@ Expected: Python assertion prints the verified server, `rg` finds no placeholder
 - Consumes: verification evidence and git status.
 - Produces: accurate Linear state.
 
-- [ ] **Step 1: If Tasks 2-4 completed, mark OPN-277 Done**
+- [x] **Step 1: If Tasks 2-4 completed and authenticated read passes, mark OPN-277 Done**
 
 Post a Linear comment with:
 
@@ -250,24 +284,16 @@ Commit: include the commit hash if Task 4 changed repo files
 Remaining follow-ups: ChatGPT Action import and desktop/phone smoke under OPN-272
 ```
 
-- [ ] **Step 2: If Cloudflare access or hostname is missing, mark OPN-277 Blocked**
+- [x] **Step 2: Confirm the blocked path is no longer current**
 
-Post a Linear comment with:
-
-```text
-Outcome: blocked
-Blocker: missing Cloudflare Zero Trust control-plane access and/or concrete public hostname
-Evidence:
-- local cloudflared status
-- gateway origin health
-- API token availability check
-Next action: provide Cloudflare dashboard/API access and the intended public hostname
-```
+Authenticated read/write evidence and desktop/phone Action smoke evidence were
+recorded later on OPN-272 and OPN-277, so the earlier blocked path is no longer
+current.
 
 ## Self-Review
 
-- Spec coverage: The plan covers hostname/DNS, TLS, path restriction, bearer auth, no Plane key exposure, no interactive Access, filtering/rate limiting, external curl checks, OpenAPI update, rollback, and Linear status update.
-- Placeholder scan: The only non-concrete values are explicit runtime inputs that must come from Cloudflare/operator secret stores; the plan stops if they are absent and forbids substituting the example hostname.
+- Spec coverage: The plan covers hostname/DNS, TLS, path restriction, bearer auth, no Plane key exposure, no interactive Access, filtering/rate limiting, external curl checks, OpenAPI update, rollback, and Linear status update. Authenticated read/write and desktop/phone smokes are evidenced in Linear; the Cloudflare rule export itself is not repo-managed.
+- Placeholder scan: No public hostname placeholder remains in the Action files. `<gateway-token>` and `GATEWAY_AUTH_TOKEN` remain explicit runtime secret placeholders and must not be committed with real values.
 - Scope check: This is an operational Cloudflare route task plus a small repo hostname substitution after live verification. It does not alter gateway route behavior, Plane data, Docker, Komodo, or ChatGPT account configuration.
 
 ## 2026-07-13 Pickup Attempt
@@ -281,6 +307,36 @@ Completed Task 1 from this session:
 - Gateway origin health: `http://192.168.1.103:8088/health` returned HTTP `200` with `{"status":"ok"}`
 - Cloudflare API token env check: `CLOUDFLARE_API_TOKEN` and `CF_API_TOKEN` are unset in this shell
 
-Blocked before Task 2 because this session does not have a concrete public
-hostname or Cloudflare Zero Trust control-plane access. Do not use
-`plane-api.example.com` for live verification or ChatGPT Action import.
+This pickup attempt originally stopped before Task 2 because the session did
+not have a concrete public hostname or Cloudflare Zero Trust control-plane
+access.
+
+## 2026-07-13 Public Hostname Follow-up
+
+Concrete hostname now known: `plane-api.agentlobster.uk`.
+
+Evidence refreshed at 2026-07-13T06:46:03Z:
+
+- `curl -sS -i --max-time 10 https://plane-api.agentlobster.uk/v1/workflow/plane/projects`
+  returned HTTP `401` with `{"detail":"Missing bearer token"}`.
+- `curl -sS -i --max-time 10 https://plane-api.agentlobster.uk/health`
+  returned HTTP `403` from Cloudflare.
+- `python3` OpenAPI parse confirmed server
+  `https://plane-api.agentlobster.uk` and `7` paths.
+- `rg -n 'plane-api.example.com|\.home\.lab' apps/openclaw-gateway/chatgpt-actions`
+  found no matches.
+- `git diff --check` passed.
+
+## 2026-07-13 Final Smoke Evidence
+
+Later tracker evidence resolved the public-ingress blockers:
+
+- Authenticated public read returned HTTP `200` with one project and no token or
+  raw payload printed.
+- Desktop ChatGPT Action create reached the public hostname, passed gateway
+  bearer authentication, and created Plane work item sequence `262`.
+- Phone ChatGPT Action comment reached the public hostname and returned `200`.
+- The follow-up default-state drift was fixed under OPN-272, redeployed through
+  Komodo, and a fresh public create smoke produced a Plane item in `Todo`.
+
+OPN-277 is closed in Linear as the public ingress dependency for OPN-272.
