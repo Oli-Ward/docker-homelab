@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 
@@ -7,6 +8,14 @@ from openclaw_gateway.routers.automation import build_automation_router
 from openclaw_gateway.routers.media import build_media_router
 from openclaw_gateway.routers.workflow import build_plane_webhook_router, build_workflow_router
 from openclaw_gateway.settings import GatewaySettings, get_settings
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s:%(name)s:%(message)s",
+    )
+    logging.getLogger("openclaw_gateway").setLevel(logging.INFO)
 
 
 def _include_gateway_routers(app: FastAPI, settings: GatewaySettings) -> None:
@@ -21,6 +30,8 @@ def _include_gateway_routers(app: FastAPI, settings: GatewaySettings) -> None:
 
 
 def create_app(settings: GatewaySettings | None = None) -> FastAPI:
+    configure_logging()
+
     if settings is None:
 
         @asynccontextmanager

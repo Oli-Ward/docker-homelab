@@ -54,6 +54,19 @@ def make_app(**overrides):
     return create_app(settings=make_settings(**overrides))
 
 
+def test_create_app_enables_gateway_info_logs():
+    gateway_logger = logging.getLogger("openclaw_gateway")
+    previous_level = gateway_logger.level
+    try:
+        gateway_logger.setLevel(logging.NOTSET)
+
+        make_app()
+
+        assert gateway_logger.isEnabledFor(logging.INFO)
+    finally:
+        gateway_logger.setLevel(previous_level)
+
+
 def plane_signature(payload: dict) -> str:
     body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     return hmac.new(
