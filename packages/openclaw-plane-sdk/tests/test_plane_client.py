@@ -36,6 +36,8 @@ async def test_plane_search_work_items_sends_api_key_and_query_params():
                         "project_id": "project-1",
                         "state_id": "state-started",
                         "priority": "medium",
+                        "created_at": "2026-07-10T08:00:00Z",
+                        "updated_at": "2026-07-12T08:00:00Z",
                         "labels": [{"id": "label-openclaw", "name": "openclaw"}],
                     }
                 ]
@@ -57,7 +59,10 @@ async def test_plane_search_work_items_sends_api_key_and_query_params():
     assert result.items[0].id == "work-item-1"
     assert result.items[0].name == "Wire Plane adapter"
     assert result.items[0].sequence_id == 264
+    assert result.items[0].created_at == "2026-07-10T08:00:00Z"
+    assert result.items[0].updated_at == "2026-07-12T08:00:00Z"
     assert result.items[0].labels[0].name == "openclaw"
+    assert result.items[0].raw["updated_at"] == "2026-07-12T08:00:00Z"
 
 
 @pytest.mark.asyncio

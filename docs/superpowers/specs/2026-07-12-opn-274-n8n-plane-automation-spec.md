@@ -35,7 +35,8 @@ OPN-274 already has one repo-managed read-only workflow slice:
   - `apps/utilities/n8n/scripts/test-plane-workflow-report-workflow.js`
 - status: checked in with `active: false`
 - behavior: scheduled report script calls authenticated gateway Plane read
-  endpoints, emits compact JSON, and writes to no external system
+  endpoints, emits compact JSON with escalation-ready fields, and writes to no
+  external system
 
 This baseline is the first workflow. OPN-274 is not complete until it is
 imported/enabled in live n8n with real runtime credentials, run successfully
@@ -83,8 +84,18 @@ Expected output:
 
 - JSON report with `source`, `report`, `generated_at`, `project_id`,
   `total_items`, `counts_by_state`, `counts_by_priority`,
-  `ready_for_agent_count`, `blocked_count`, and compact `items`.
+  `ready_for_agent_count`, `blocked_count`, `needs_input_count`,
+  `in_review_count`, `stale_in_review_count`, `actionable_count`, compact
+  `items`, and `actionable_items`.
+- `actionable_items` includes thresholded `Blocked`, `Needs Input`, and stale
+  `In Review` items, with safe age and threshold metadata.
 - No raw Plane payloads, descriptions, comments, tokens, or credentials.
+
+Default thresholds:
+
+- `PLANE_REPORT_NEEDS_INPUT_HOURS=24`
+- `PLANE_REPORT_BLOCKED_HOURS=48`
+- `PLANE_REPORT_IN_REVIEW_HOURS=72`
 
 Rollback switch:
 

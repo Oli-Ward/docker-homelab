@@ -48,6 +48,8 @@ class PlaneWorkItem(BaseModel):
     sequence_id: int | None = None
     state_id: str | None = None
     priority: str | int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
     labels: list[PlaneWorkItemLabel] = Field(default_factory=list)
     raw: dict[str, Any] = Field(default_factory=dict)
 

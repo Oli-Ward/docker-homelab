@@ -28,6 +28,19 @@
     },
     {
       "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "3d3d272b-21b1-44e1-b5d4-a220d6961f27",
+      "name": "Manual Plane Report Smoke",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -520,
+        180
+      ]
+    },
+    {
+      "parameters": {
         "executeOnce": false,
         "command": "/usr/local/bin/node /opt/n8n-scripts/plane-workflow-report.js"
       },
@@ -57,6 +70,17 @@
   "pinData": {},
   "connections": {
     "Weekly Plane Report Schedule": {
+      "main": [
+        [
+          {
+            "node": "Generate Plane Workflow Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Plane Report Smoke": {
       "main": [
         [
           {

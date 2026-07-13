@@ -244,6 +244,8 @@ class PlaneClient:
             sequence_id=item.get("sequence_id"),
             state_id=item.get("state_id") or item.get("state"),
             priority=item.get("priority"),
+            created_at=item.get("created_at"),
+            updated_at=item.get("updated_at"),
             labels=[
                 {"id": label.get("id"), "name": str(label.get("name", ""))}
                 for label in labels

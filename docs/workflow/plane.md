@@ -368,12 +368,43 @@ The first repo-managed read-only n8n report automation is:
 - gateway URL env: `MEDIA_GATEWAY_URL`
 - gateway token env: `MEDIA_GATEWAY_TOKEN`
 - Plane project env: `PLANE_REPORT_PROJECT_ID`
+- threshold env: `PLANE_REPORT_NEEDS_INPUT_HOURS`,
+  `PLANE_REPORT_BLOCKED_HOURS`, and `PLANE_REPORT_IN_REVIEW_HOURS`
 
 This workflow is deliberately checked in with `active: false`. It calls the
 gateway's authenticated Plane read endpoints, emits a compact JSON summary, and
 does not write to Plane, Slack, GitHub, or OpenClaw. Import and enable it in
 live n8n only after the gateway token and report project ID are configured in
 Komodo or n8n runtime settings.
+
+The workflow has both a weekly schedule trigger and an `Execute Workflow
+Trigger` named `Manual Plane Report Smoke`. The extra trigger exists so a live
+operator can run a non-secret smoke through n8n itself, without waiting for the
+weekly schedule. When using the n8n CLI inside an already-running n8n
+container, set a temporary alternate broker port for the one-off process, for
+example `N8N_RUNNERS_BROKER_PORT=5689`, to avoid colliding with the live task
+broker on port 5679.
+
+The report includes counts by state and priority, compact work item summaries,
+and escalation-ready fields for future notification workflows:
+
+- `needs_input_count`
+- `blocked_count`
+- `in_review_count`
+- `stale_in_review_count`
+- `actionable_count`
+- `actionable_items`
+
+By default, the report marks `Needs Input` items actionable after 24 hours,
+`Blocked` items after 48 hours, and `In Review` items as stale after 72 hours.
+These defaults can be overridden through the threshold env vars above. Missing
+or malformed timestamps are treated conservatively: the item remains counted in
+its state, but it is not marked stale or actionable from age alone.
+
+The output is JSON only. It intentionally excludes raw Plane payloads,
+descriptions, comments, request headers, tokens, and credentials. A future
+Slack digest can consume `actionable_items`; Slack posting remains a separate
+workflow with its own credential, noise-control, and rollback evidence.
 
 ## Metadata Contract
 
