@@ -36,6 +36,10 @@ from openclaw_gateway.schemas.workflow import (
     PlaneWebhookDispatchResponse,
     PlaneWebhookQueueStatusResponse,
     PlaneWebhookReplayResponse,
+    PlaneWritebackClaim,
+    PlaneWritebackOperation,
+    PlaneWritebackRequest,
+    PlaneWritebackResponse,
 )
 from openclaw_gateway.settings import GatewaySettings
 from openclaw_plane_sdk import PlaneApiError, PlaneClient, PlaneResponseError
@@ -54,6 +58,9 @@ def _audit_plane_write(
     project_id: str,
     work_item_id: str | None = None,
     plane_item_id: str | None = None,
+    claim_id: str | None = None,
+    source_identifier: str | None = None,
+    writeback_phase: str | None = None,
 ) -> None:
     logger.info(
         "plane workflow write audit",
@@ -63,6 +70,9 @@ def _audit_plane_write(
             "project_id": project_id,
             "work_item_id": work_item_id,
             "plane_item_id": plane_item_id,
+            "claim_id": claim_id,
+            "source_identifier": source_identifier,
+            "writeback_phase": writeback_phase,
         },
     )
 
@@ -349,6 +359,85 @@ async def _create_plane_work_item_with_default_state(
     raise PlaneResponseError("Plane Todo state not found")
 
 
+PLANE_WRITEBACK_UPDATE_FIELDS = (
+    "name",
+    "description_html",
+    "state_id",
+    "priority",
+    "label_ids",
+    "assignee_ids",
+    "parent_id",
+)
+
+
+def _writeback_claim(writeback: PlaneWritebackRequest) -> PlaneWritebackClaim:
+    claim = writeback.claim
+    claim_metadata = writeback.claim_metadata
+    return PlaneWritebackClaim(
+        claim_id=(claim.claim_id if claim and claim.claim_id else None)
+        or (claim_metadata.claim_id if claim_metadata and claim_metadata.claim_id else None)
+        or writeback.claim_id,
+        source_identifier=(claim.source_identifier if claim and claim.source_identifier else None)
+        or (
+            claim_metadata.source_identifier
+            if claim_metadata and claim_metadata.source_identifier
+            else None
+        )
+        or writeback.source_identifier,
+        phase=(claim.phase if claim and claim.phase else None)
+        or (claim_metadata.phase if claim_metadata and claim_metadata.phase else None)
+        or writeback.phase,
+        writeback_phase=(claim.writeback_phase if claim and claim.writeback_phase else None)
+        or (
+            claim_metadata.writeback_phase
+            if claim_metadata and claim_metadata.writeback_phase
+            else None
+        )
+        or writeback.writeback_phase,
+    )
+
+
+def _writeback_update(operation: PlaneWritebackOperation) -> PlaneWorkItemUpdate | None:
+    update_fields = {
+        field_name: getattr(operation, field_name)
+        for field_name in PLANE_WRITEBACK_UPDATE_FIELDS
+        if field_name in operation.model_fields_set
+    }
+    if not update_fields:
+        return None
+    return PlaneWorkItemUpdate(**update_fields)
+
+
+async def _apply_plane_writeback(
+    client: PlaneClient,
+    writeback: PlaneWritebackRequest,
+) -> str:
+    operation = writeback.operation
+    update = _writeback_update(operation)
+    if update is None and not operation.comment_html:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="plane writeback operation has no supported action",
+        )
+
+    plane_item_id: str | None = None
+    if update is not None:
+        updated = await client.update_work_item(
+            project_id=operation.project_id,
+            work_item_id=operation.work_item_id,
+            update=update,
+        )
+        plane_item_id = updated.id
+    if operation.comment_html:
+        comment = await client.add_comment(
+            project_id=operation.project_id,
+            work_item_id=operation.work_item_id,
+            comment=PlaneCommentCreate(comment_html=operation.comment_html),
+        )
+        plane_item_id = comment.id
+    return plane_item_id or operation.work_item_id
+
+
 def build_workflow_router(settings: GatewaySettings) -> APIRouter:
     router = APIRouter(
         prefix="/v1/workflow",
@@ -425,6 +514,28 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
             request,
             lambda: plane_client().list_project_work_items(project_id=project_id, limit=limit)
         )
+
+    @router.post("/plane/writeback")
+    async def plane_writeback(
+        request: Request,
+        writeback: PlaneWritebackRequest,
+    ) -> PlaneWritebackResponse:
+        plane_item_id = await _map_plane_errors(
+            request,
+            lambda: _apply_plane_writeback(plane_client(), writeback),
+        )
+        claim = _writeback_claim(writeback)
+        _audit_plane_write(
+            operation="plane_writeback",
+            correlation_id=_request_correlation_id(request),
+            project_id=writeback.operation.project_id,
+            work_item_id=writeback.operation.work_item_id,
+            plane_item_id=plane_item_id,
+            claim_id=claim.claim_id,
+            source_identifier=claim.source_identifier,
+            writeback_phase=claim.phase or claim.writeback_phase,
+        )
+        return PlaneWritebackResponse(ok=True, applied=True)
 
     @router.get(
         "/plane/projects/{project_id}/work-items/{work_item_id}",

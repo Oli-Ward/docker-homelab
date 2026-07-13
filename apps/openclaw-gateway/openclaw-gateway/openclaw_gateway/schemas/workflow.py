@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from openclaw_plane_sdk.models import (
     PlaneComment,
@@ -80,3 +80,45 @@ class PlaneWebhookDispatchResponse(BaseModel):
 class PlaneWebhookReplayResponse(BaseModel):
     replayed: bool
     delivery_id: str
+
+
+class PlaneWritebackClaim(BaseModel):
+    claim_id: str | None = Field(default=None, min_length=1)
+    source_identifier: str | None = Field(default=None, min_length=1)
+    phase: str | None = Field(default=None, min_length=1)
+    writeback_phase: str | None = Field(default=None, min_length=1)
+    correlation_id: str | None = Field(default=None, min_length=1)
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PlaneWritebackOperation(BaseModel):
+    project_id: str = Field(min_length=1)
+    work_item_id: str = Field(min_length=1)
+    name: str | None = Field(default=None, min_length=1)
+    description_html: str | None = None
+    state_id: str | None = None
+    priority: Literal["urgent", "high", "medium", "low", "none"] | int | None = None
+    label_ids: list[str] | None = None
+    assignee_ids: list[str] | None = None
+    parent_id: str | None = None
+    comment_html: str | None = Field(default=None, min_length=1)
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PlaneWritebackRequest(BaseModel):
+    operation: PlaneWritebackOperation
+    claim: PlaneWritebackClaim | None = None
+    claim_metadata: PlaneWritebackClaim | None = None
+    claim_id: str | None = Field(default=None, min_length=1)
+    source_identifier: str | None = Field(default=None, min_length=1)
+    phase: str | None = Field(default=None, min_length=1)
+    writeback_phase: str | None = Field(default=None, min_length=1)
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PlaneWritebackResponse(BaseModel):
+    ok: bool
+    applied: bool

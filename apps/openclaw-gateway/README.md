@@ -45,6 +45,7 @@ GET /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}
 POST /v1/workflow/plane/projects/{project_id}/work-items
 PATCH /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}
 POST /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}/comments
+POST /v1/workflow/plane/writeback
 ```
 
 `/health` is public and returns only:
@@ -96,7 +97,7 @@ target the intended project without relying on fuzzy project-name matching.
 The retained Plane REST facade is split between read and write routes:
 
 - Read: projects, project states, project labels, search, project work-item list, and single work-item read.
-- Write: create work item, update work item, and add work-item comment.
+- Write: create work item, update work item, add work-item comment, and apply one OpenClaw write-back operation.
 
 All REST facade routes require the gateway bearer token. Callers such as OpenClaw, n8n helpers, CLI scripts, and future MCP tools should send `Authorization: Bearer <gateway token>` and may send `X-Request-ID` to control the response/audit correlation ID. The gateway owns Plane credentials; callers must never receive or store the Plane API key.
 
@@ -116,6 +117,31 @@ Plane facade errors use a stable, secret-free response shape:
 Stable error codes are `plane_auth_failed`, `plane_permission_denied`, `plane_resource_not_found`, `plane_conflict`, `plane_validation_failed`, `plane_rate_limited`, `plane_upstream_error`, `plane_timeout`, `plane_request_failed`, and `plane_invalid_response`. The gateway maps upstream Plane credential failures to `502` because the caller's gateway token may still be valid; caller permission failures from Plane map to `403`, not a generic upstream failure.
 
 Every successful Plane write logs `plane workflow write audit` with operation, correlation ID, project ID, work-item ID when present, and Plane item ID. Audit logs intentionally omit request bodies, bearer tokens, Plane API keys, comments, descriptions, and raw upstream payloads.
+
+`POST /v1/workflow/plane/writeback` is the OpenClaw-facing composite write route
+for one planned Plane write-back operation plus claim metadata. It applies
+supported work-item updates and/or one progress comment through the in-gateway
+Plane client, then returns `{"ok": true, "applied": true}` only after the client
+calls complete. The route is intentionally not a bulk API and does not expose
+raw Plane credentials or raw upstream payloads.
+
+Example Plane write-back request:
+
+```json
+{
+  "claim": {
+    "claim_id": "plane:openclaw:project:ticket:revision",
+    "source_identifier": "OPENC-261",
+    "phase": "pr_opened"
+  },
+  "operation": {
+    "project_id": "project-uuid",
+    "work_item_id": "work-item-uuid",
+    "state_id": "in-review-state-uuid",
+    "comment_html": "<p>PR opened: https://github.example/pr/4</p>"
+  }
+}
+```
 
 ## Plane SDK
 

@@ -227,6 +227,76 @@ async def test_plane_create_update_and_comment_routes(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_plane_writeback_route_applies_one_operation(monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
+    observed: dict[str, object] = {}
+
+    async def update_work_item(self, project_id, work_item_id, update):
+        observed["update"] = (project_id, work_item_id, update.state_id)
+        return PlaneWorkItem(
+            id=work_item_id,
+            name="Updated",
+            project_id=project_id,
+            state_id=update.state_id,
+        )
+
+    async def add_comment(self, project_id, work_item_id, comment):
+        observed["comment"] = (project_id, work_item_id, comment.comment_html)
+        return PlaneComment(id="comment-1", comment_html=comment.comment_html)
+
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.update_work_item", update_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
+
+    transport = httpx.ASGITransport(app=make_app())
+    headers = {
+        "Authorization": "Bearer gateway-secret",
+        "X-Request-ID": "request-writeback",
+    }
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/v1/workflow/plane/writeback",
+            headers=headers,
+            json={
+                "claim": {
+                    "claim_id": "claim-1",
+                    "source_identifier": "OPENC-261",
+                    "phase": "pr_opened",
+                },
+                "operation": {
+                    "project_id": "project-1",
+                    "work_item_id": "work-item-1",
+                    "state_id": "state-review",
+                    "comment_html": "<p>PR opened: https://github.example/pr/4</p>",
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "applied": True}
+    assert observed == {
+        "update": ("project-1", "work-item-1", "state-review"),
+        "comment": ("project-1", "work-item-1", "<p>PR opened: https://github.example/pr/4</p>"),
+    }
+    [audit_record] = [
+        record
+        for record in caplog.records
+        if record.message == "plane workflow write audit"
+        and record.operation == "plane_writeback"
+    ]
+    assert audit_record.correlation_id == "request-writeback"
+    assert audit_record.project_id == "project-1"
+    assert audit_record.work_item_id == "work-item-1"
+    assert audit_record.plane_item_id == "comment-1"
+    assert audit_record.claim_id == "claim-1"
+    assert audit_record.source_identifier == "OPENC-261"
+    assert audit_record.writeback_phase == "pr_opened"
+    rendered_logs = "\n".join(record.getMessage() for record in caplog.records)
+    assert "gateway-secret" not in rendered_logs
+    assert "plane-secret" not in rendered_logs
+    assert "github.example/pr/4" not in rendered_logs
+
+
+@pytest.mark.asyncio
 async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplog):
     caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
 
