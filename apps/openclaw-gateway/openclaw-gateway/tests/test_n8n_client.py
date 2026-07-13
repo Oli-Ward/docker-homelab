@@ -124,6 +124,8 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
             "state_name": "Ready for Agent",
             "priority": "high",
             "label_names": ["agent:ready", "repo:docker"],
+            "agent_ready": {"context": True, "acceptance_criteria": True, "safety_notes": True},
+            "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
             "origin": "plane",
             "retry_attempt": 0,
             "raw_payload_hash": "a" * 64,
@@ -142,7 +144,9 @@ async def test_n8n_forward_plane_webhook_event_posts_normalized_payload():
         b'"team":"Openclaw",'
         b'"project_id":"project-1","source_identifier":"OPN-273","sequence_id":273,"name":"Ready for agent",'
         b'"state_id":"state-ready","state_name":"Ready for Agent","priority":"high",'
-        b'"label_names":["agent:ready","repo:docker"]}'
+        b'"label_names":["agent:ready","repo:docker"],'
+        b'"agent_ready":{"context":true,"acceptance_criteria":true,"safety_notes":true},'
+        b'"agent_ready_checks":["context","acceptance_criteria","safety_notes"]}'
     )
     assert result.ok is True
     assert result.failure_type is None

@@ -13,6 +13,8 @@ const fakeSshPath = path.join(tmpDir, "ssh");
 const inputPath = path.join(tmpDir, "input.json");
 const capturedPayloadPath = path.join(tmpDir, "payload.json");
 const capturedCommandPath = path.join(tmpDir, "remote-command.txt");
+const opencInputPath = path.join(tmpDir, "openc-input.json");
+const capturedOpencPayloadPath = path.join(tmpDir, "openc-payload.json");
 const ignoredInputPath = path.join(tmpDir, "ignored-input.json");
 const needsInputPath = path.join(tmpDir, "needs-input.json");
 const unexpectedPayloadPath = path.join(tmpDir, "unexpected-payload.json");
@@ -61,6 +63,8 @@ const input = {
   state_name: "Ready for Agent",
   priority: "high",
   label_names: ["agent:ready", "repo:docker"],
+  agent_ready: { context: true, acceptance_criteria: true, safety_notes: true },
+  agent_ready_checks: ["context", "acceptance_criteria", "safety_notes"],
   origin: "plane",
   retry_attempt: 0,
   raw_payload_hash: "a".repeat(64),
@@ -125,12 +129,63 @@ assert.deepEqual(uploaded, {
   state_name: "Ready for Agent",
   priority: "high",
   label_names: ["agent:ready", "repo:docker"],
+  agent_ready: { context: true, acceptance_criteria: true, safety_notes: true },
+  agent_ready_checks: ["context", "acceptance_criteria", "safety_notes"],
   received_at: "2026-07-11T08:45:00.000Z",
 });
 
 const remoteCommand = fs.readFileSync(capturedCommandPath, "utf8");
 assert.equal(remoteCommand.includes("cd '/srv/openclaw/workspace'"), true);
 assert.equal(remoteCommand.includes("'tools/bin/openclaw-plane-n8n-dispatch' --event-file"), true);
+
+fs.writeFileSync(
+  opencInputPath,
+  JSON.stringify({
+    ...input,
+    event_id: "delivery-openc-261",
+    idempotency_key: "delivery-openc-261",
+    correlation_id: "plane:delivery-openc-261",
+    delivery_id: "delivery-openc-261",
+    resource_id: "work-item-openc-261",
+    team: undefined,
+    source_identifier: undefined,
+    identifier: "OPENC-261",
+    sequence_id: 261,
+    name: "Make workout state sync resilient",
+    label_names: ["agent:ready", "repo:openclaw"],
+    agent_ready: undefined,
+    agent_ready_checks: undefined,
+  }),
+);
+
+const opencResult = spawnSync("sh", ["-c", "exec sh \"$1\" < \"$2\"", "sh", scriptPath, opencInputPath], {
+  encoding: "utf8",
+  timeout: 10000,
+  env: {
+    ...process.env,
+    PATH: `${tmpDir}:${process.env.PATH}`,
+    FAKE_SSH_PAYLOAD: capturedOpencPayloadPath,
+    FAKE_SSH_COMMAND: capturedCommandPath,
+    OPENCLAW_SSH_HOST: "openclaw.internal",
+    OPENCLAW_SSH_USER: "openclaw",
+    OPENCLAW_SSH_PORT: "22",
+    OPENCLAW_SSH_KEY_PATH: "/tmp/fake-key",
+    OPENCLAW_WORKSPACE: "/srv/openclaw/workspace",
+    OPENCLAW_PLANE_DISPATCH_COMMAND: "tools/bin/openclaw-plane-n8n-dispatch",
+    NODE_BIN: process.execPath,
+  },
+});
+
+assert.equal(
+  opencResult.status,
+  0,
+  `OPENC sender exited ${opencResult.status} signal ${opencResult.signal}: ${opencResult.stderr || opencResult.error || ""}`,
+);
+assert.equal(opencResult.stderr, "");
+const uploadedOpenc = JSON.parse(fs.readFileSync(capturedOpencPayloadPath, "utf8"));
+assert.equal(uploadedOpenc.team, "openclaw");
+assert.equal(uploadedOpenc.source_identifier, "OPENC-261");
+assert.deepEqual(uploadedOpenc.agent_ready_checks, ["context", "acceptance_criteria", "safety_notes"]);
 
 fs.writeFileSync(
   ignoredInputPath,

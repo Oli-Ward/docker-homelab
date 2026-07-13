@@ -101,7 +101,7 @@ class PlaneClient:
     ) -> PlaneWorkItem:
         payload = await self._post(
             f"/api/v1/workspaces/{self._workspace_slug}/projects/{project_id}/work-items/",
-            json=work_item.model_dump(),
+            json=work_item.model_dump(exclude_none=True, exclude_defaults=True),
         )
         return self._work_item(payload)
 
@@ -111,9 +111,12 @@ class PlaneClient:
         work_item_id: str,
         update: PlaneWorkItemUpdate,
     ) -> PlaneWorkItem:
+        payload = update.model_dump(exclude_unset=True)
+        if "state_id" in payload:
+            payload["state"] = payload.pop("state_id")
         payload = await self._patch(
             f"/api/v1/workspaces/{self._workspace_slug}/projects/{project_id}/work-items/{work_item_id}/",
-            json=update.model_dump(exclude_unset=True),
+            json=payload,
         )
         return self._work_item(payload)
 

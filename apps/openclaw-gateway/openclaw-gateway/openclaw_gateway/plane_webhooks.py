@@ -629,6 +629,22 @@ def _safe_work_item_metadata(data: dict[str, object]) -> dict[str, object]:
                     names.append(name)
         if names:
             metadata["label_names"] = names
+    agent_ready = data.get("agent_ready") or data.get("agentReady")
+    if isinstance(agent_ready, dict):
+        checks: dict[str, bool] = {}
+        for key, value in agent_ready.items():
+            check_name = _string(key)
+            if check_name:
+                checks[check_name] = bool(value)
+        if checks:
+            metadata["agent_ready"] = checks
+
+    agent_ready_checks = data.get("agent_ready_checks") or data.get("agentReadyChecks")
+    if isinstance(agent_ready_checks, list):
+        checks = [_string(check).strip() for check in agent_ready_checks]
+        checks = [check for check in checks if check]
+        if checks:
+            metadata["agent_ready_checks"] = checks
     return metadata
 
 

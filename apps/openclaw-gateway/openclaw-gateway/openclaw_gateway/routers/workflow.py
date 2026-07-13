@@ -330,6 +330,25 @@ async def _map_plane_errors(
         ) from exc
 
 
+async def _create_plane_work_item_with_default_state(
+    client: PlaneClient,
+    *,
+    project_id: str,
+    work_item: PlaneWorkItemCreate,
+) -> PlaneWorkItem:
+    if work_item.state_id:
+        return await client.create_work_item(project_id=project_id, work_item=work_item)
+
+    states = await client.list_states(project_id)
+    for state in states.items:
+        if state.name.casefold() == "todo":
+            return await client.create_work_item(
+                project_id=project_id,
+                work_item=work_item.model_copy(update={"state_id": state.id}),
+            )
+    raise PlaneResponseError("Plane Todo state not found")
+
+
 def build_workflow_router(settings: GatewaySettings) -> APIRouter:
     router = APIRouter(
         prefix="/v1/workflow",
@@ -426,9 +445,14 @@ def build_workflow_router(settings: GatewaySettings) -> APIRouter:
         project_id: str,
         work_item: PlaneWorkItemCreate,
     ) -> PlaneWorkItem:
+        client = plane_client()
         created = await _map_plane_errors(
             request,
-            lambda: plane_client().create_work_item(project_id=project_id, work_item=work_item)
+            lambda: _create_plane_work_item_with_default_state(
+                client,
+                project_id=project_id,
+                work_item=work_item,
+            ),
         )
         _audit_plane_write(
             operation="plane_work_item_create",

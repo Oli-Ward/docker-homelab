@@ -128,13 +128,13 @@
             {
               "id": "d9b2ce0a-8b4a-40a7-b115-5ef5aa5159c2",
               "name": "team",
-              "value": "={{ $json.body.team }}",
+              "value": "={{ $json.body.team || $json.body.team_name || $json.body.teamName || 'openclaw' }}",
               "type": "string"
             },
             {
               "id": "2866d5a3-0d80-407a-bbce-2167c539517d",
               "name": "source_identifier",
-              "value": "={{ $json.body.source_identifier }}",
+              "value": "={{ $json.body.source_identifier || $json.body.sourceIdentifier || $json.body.identifier || $json.body.work_item_identifier || $json.body.workItemIdentifier || ($json.body.sequence_id ? 'OPENC-' + $json.body.sequence_id : '') }}",
               "type": "string"
             },
             {
@@ -171,6 +171,18 @@
               "id": "2cab0175-3049-49a1-bbec-1e611018de04",
               "name": "label_names",
               "value": "={{ $json.body.label_names || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "a2edfff4-e155-4e58-b3f9-0fff64866f3b",
+              "name": "agent_ready",
+              "value": "={{ $json.body.agent_ready || $json.body.agentReady || {} }}",
+              "type": "object"
+            },
+            {
+              "id": "915629c2-ebd6-4655-953a-b05f6e1558f2",
+              "name": "agent_ready_checks",
+              "value": "={{ $json.body.agent_ready_checks || $json.body.agentReadyChecks || (($json.body.state_name || $json.body.stateName) === 'Ready for Agent' ? ['context', 'acceptance_criteria', 'safety_notes'] : []) }}",
               "type": "array"
             },
             {

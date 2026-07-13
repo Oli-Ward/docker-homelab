@@ -18,6 +18,36 @@ function labelNames(value) {
   return value.filter((label) => typeof label === "string" && label);
 }
 
+const REQUIRED_AGENT_READY_CHECKS = ["context", "acceptance_criteria", "safety_notes"];
+
+function agentReadyChecks(event) {
+  if (event.agent_ready && typeof event.agent_ready === "object" && !Array.isArray(event.agent_ready)) {
+    return {
+      present: true,
+      checks: Object.entries(event.agent_ready)
+        .filter(([, enabled]) => Boolean(enabled))
+        .map(([name]) => String(name).trim().toLowerCase())
+        .filter(Boolean),
+    };
+  }
+  if (Array.isArray(event.agent_ready_checks)) {
+    return {
+      present: true,
+      checks: event.agent_ready_checks.map((check) => String(check).trim().toLowerCase()).filter(Boolean),
+    };
+  }
+  return { present: false, checks: [] };
+}
+
+function missingAgentReadyChecks(event) {
+  const readiness = agentReadyChecks(event);
+  const complete = new Set(readiness.checks);
+  return {
+    present: readiness.present,
+    missing: REQUIRED_AGENT_READY_CHECKS.filter((check) => !complete.has(check)),
+  };
+}
+
 function repoFromLabels(labels) {
   const repoLabel = labels.find((label) => label.startsWith("repo:"));
   if (!repoLabel) {
@@ -42,6 +72,14 @@ function classifyPlaneAgentPickup(event) {
   } else if (!repo) {
     decision = "needs_input";
     reason = "missing_repo_label";
+  } else {
+    const readiness = missingAgentReadyChecks(event);
+    if (readiness.missing.length > 0) {
+      decision = "needs_input";
+      reason = readiness.present
+        ? `agent_ready_incomplete: ${readiness.missing.join(", ")}`
+        : `agent_ready_missing: ${readiness.missing.join(", ")}`;
+    }
   }
 
   return {

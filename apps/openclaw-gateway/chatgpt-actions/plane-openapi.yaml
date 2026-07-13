@@ -1,0 +1,392 @@
+openapi: 3.1.0
+info:
+  title: OpenClaw Plane Tools
+  version: 0.1.0
+  description: Gateway-backed Plane ticket operations for OpenClaw ChatGPT and Codex tools.
+servers:
+  - url: https://plane-api.example.com
+    description: Replace with the dedicated public Cloudflare Tunnel Action hostname before importing.
+security:
+  - gatewayBearer: []
+components:
+  securitySchemes:
+    gatewayBearer:
+      type: http
+      scheme: bearer
+  schemas:
+    PlaneWorkItemLabel:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    PlaneWorkItem:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        project_id:
+          type: string
+        sequence_id:
+          type: integer
+        state_id:
+          type: string
+        priority:
+          oneOf:
+            - type: string
+            - type: integer
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaneWorkItemLabel"
+    PlaneWorkItemsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaneWorkItem"
+    PlaneProject:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        identifier:
+          type: string
+    PlaneProjectsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaneProject"
+    PlaneState:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        group:
+          type: string
+    PlaneStatesResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaneState"
+    PlaneLabel:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+    PlaneLabelsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaneLabel"
+    PlaneComment:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        comment_html:
+          type: string
+    PlaneWorkItemCreate:
+      type: object
+      description: Create requests default to the project's Todo state at the gateway; create-time state selection is intentionally not exposed to ChatGPT.
+      required:
+        - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Work item title. Use a clear ticket title.
+        description_html:
+          type: string
+          description: Optional HTML description.
+        priority:
+          oneOf:
+            - type: string
+              enum:
+                - urgent
+                - high
+                - medium
+                - low
+                - none
+            - type: integer
+        label_ids:
+          type: array
+          items:
+            type: string
+        assignee_ids:
+          type: array
+          items:
+            type: string
+        parent_id:
+          type: string
+    PlaneWorkItemUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description_html:
+          type: string
+        state_id:
+          type: string
+          description: Plane state UUID. Do not move tickets to Ready for Agent unless the user explicitly asks and checklist evidence is complete.
+        priority:
+          oneOf:
+            - type: string
+              enum:
+                - urgent
+                - high
+                - medium
+                - low
+                - none
+            - type: integer
+        label_ids:
+          type: array
+          items:
+            type: string
+        assignee_ids:
+          type: array
+          items:
+            type: string
+        parent_id:
+          type: string
+    PlaneCommentCreate:
+      type: object
+      required:
+        - comment_html
+      additionalProperties: false
+      properties:
+        comment_html:
+          type: string
+          minLength: 1
+          description: HTML comment body.
+paths:
+  /v1/workflow/plane/projects:
+    get:
+      operationId: listPlaneProjects
+      summary: List Plane projects.
+      responses:
+        "200":
+          description: Project list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneProjectsResponse"
+  /v1/workflow/plane/projects/{project_id}/states:
+    get:
+      operationId: listPlaneStates
+      summary: List states for a Plane project.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: State list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneStatesResponse"
+  /v1/workflow/plane/projects/{project_id}/labels:
+    get:
+      operationId: listPlaneLabels
+      summary: List labels for a Plane project.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Label list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneLabelsResponse"
+  /v1/workflow/plane/search:
+    get:
+      operationId: searchPlaneWorkItems
+      summary: Search Plane work items.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneWorkItemsResponse"
+  /v1/workflow/plane/projects/{project_id}/work-items:
+    get:
+      operationId: listPlaneProjectWorkItems
+      summary: List Plane work items in a project.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Work item list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneWorkItemsResponse"
+    post:
+      operationId: createPlaneWorkItem
+      summary: Create one Plane work item in the project Todo state.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaneWorkItemCreate"
+      responses:
+        "200":
+          description: Created work item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneWorkItem"
+  /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}:
+    get:
+      operationId: getPlaneWorkItem
+      summary: Read a specific Plane work item.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: work_item_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Work item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneWorkItem"
+    patch:
+      operationId: updatePlaneWorkItem
+      summary: Update one specific Plane work item. Do not use for delete, archive, or bulk edits.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: work_item_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaneWorkItemUpdate"
+      responses:
+        "200":
+          description: Updated work item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneWorkItem"
+  /v1/workflow/plane/projects/{project_id}/work-items/{work_item_id}/comments:
+    post:
+      operationId: commentOnPlaneWorkItem
+      summary: Add a comment to one specific Plane work item.
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: work_item_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaneCommentCreate"
+      responses:
+        "200":
+          description: Created comment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaneComment"

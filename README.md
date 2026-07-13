@@ -24,6 +24,26 @@ Authentik (Auth Layer)
 Services (Sonarr, Radarr, etc.)
 ```
 
+The deliberate public exception is the ChatGPT Plane Action ingress:
+
+```text
+ChatGPT Action
+      ↓
+Dedicated public HTTPS hostname
+      ↓
+Cloudflare Tunnel
+      ↓
+/v1/workflow/plane/* only
+      ↓
+openclaw-gateway
+      ↓
+Plane
+```
+
+This endpoint must retain gateway bearer authentication, must not use
+interactive Cloudflare Access, and must not expose `.home.lab`, the raw gateway
+port, or the Plane API key.
+
 ---
 
 ## 🔐 Authentication
@@ -166,6 +186,7 @@ Repo-managed n8n Plane workflow templates live under `apps/utilities/n8n/workflo
 * Seekarr is exposed via `https://seekarr.home.lab` with Nginx Proxy Manager and Authentik proxy auth; configure Arr instances in the web UI with internal URLs before enabling schedules.
 * Plane is exposed via `https://plane.home.lab` through Nginx Proxy Manager and uses Plane-native login; do not add Authentik proxy auth in front of the Plane app unless mobile login and API flows are revalidated. Mutable Plane state belongs under `${APPDATA_ROOT}/plane`.
 * Recyclarr is an internal scheduled/CLI service only; do not expose it through Nginx Proxy Manager or Authentik.
+* The ChatGPT Plane Action uses a dedicated Cloudflare Tunnel public hostname configured in Cloudflare Zero Trust against the gateway's media-host port. It is restricted to `/v1/workflow/plane/*` and protected by gateway bearer auth plus Cloudflare rate limiting.
 
 ---
 

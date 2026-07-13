@@ -19,6 +19,9 @@ test = [
   "respx==0.22.0",
 ]
 
+[project.scripts]
+openclaw-plane-tool = "openclaw_gateway.plane_tool_cli:main"
+
 [tool.uv.sources]
 openclaw-plane-sdk = { path = "../../../packages/openclaw-plane-sdk", editable = true }
 

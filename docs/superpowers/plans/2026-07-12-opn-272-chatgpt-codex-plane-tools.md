@@ -35,6 +35,29 @@ Blocking/dependency note:
 
 - Linear still lists `OPN-270` as a blocker. Before implementation, confirm the reusable SDK dependency is actually satisfied in this checkout by checking that `apps/openclaw-gateway/openclaw-gateway/pyproject.toml` has the editable `openclaw-plane-sdk` path dependency and that `packages/openclaw-plane-sdk` tests pass.
 
+Execution status:
+
+- 2026-07-12: Repo-local adapter, CLI, ChatGPT Action schema, and setup docs
+  are implemented.
+- 2026-07-12: Local verification found the live gateway create smoke was
+  blocked by deployed SDK create serialization sending unset optional fields to
+  Plane. The SDK fix is implemented locally and covered by regression tests.
+- 2026-07-12: Deployed `openclaw-gateway` via Komodo and verified the live
+  gateway read/create/comment/update smoke. The smoke ticket was created as
+  sequence `260`; the created ID prefix was `92b45948`.
+- 2026-07-12: Fixed the production Plane-to-n8n-to-OpenClaw dispatch gap where
+  agent-ready checklist metadata was dropped before OpenClaw. Backed up the
+  live `plane-openclaw-dispatch` workflow under ignored `backups/n8n/`, deployed
+  gateway allowlist changes via Komodo, imported/published the narrow n8n
+  workflow patch, restarted only the `n8n` service via Komodo, and validated a
+  synthetic `Ready for Agent` dry-run through the published n8n webhook.
+- 2026-07-13: Added `OPN-277` as the child ticket for the public gateway
+  endpoint. The Action schema remains on `https://plane-api.example.com` until
+  that public hostname is configured and verified.
+- 2026-07-13: Hardened the gateway create route so omitted create state resolves
+  to the project's `Todo` state before calling Plane, and removed create-time
+  `state_id` exposure from the ChatGPT Action schema.
+
 ## File Structure
 
 - Create `apps/openclaw-gateway/openclaw-gateway/openclaw_gateway/plane_tools.py`
@@ -677,7 +700,8 @@ info:
   version: 0.1.0
   description: Gateway-backed Plane ticket operations for OpenClaw.
 servers:
-  - url: https://openclaw-gateway.home.lab
+  - url: https://plane-api.example.com
+    description: Replace with the dedicated public Cloudflare Tunnel Action hostname before importing.
 security:
   - gatewayBearer: []
 components:
@@ -696,9 +720,6 @@ components:
           minLength: 1
         description_html:
           type: string
-        state_id:
-          type: string
-          description: Optional explicit Plane state UUID. Omit to use Todo.
         priority:
           oneOf:
             - type: string
@@ -1052,7 +1073,7 @@ Expected: only safe placeholders or test sentinel strings appear. Do not print o
 Use a shell with real values loaded from the operator’s secret store:
 
 ```bash
-export GATEWAY_URL="https://openclaw-gateway.home.lab"
+export GATEWAY_URL="http://192.168.1.103:8088"
 export GATEWAY_AUTH_TOKEN="<real token from secret store>"
 ```
 

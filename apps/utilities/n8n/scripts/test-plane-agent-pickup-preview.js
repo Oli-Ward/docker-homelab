@@ -25,6 +25,7 @@ function baseEvent(overrides = {}) {
     state_name: "Ready for Agent",
     priority: "high",
     label_names: ["agent:ready", "repo:docker"],
+    agent_ready: { context: true, acceptance_criteria: true, safety_notes: true },
     description_html: "<p>must not leak</p>",
     raw_payload: { must: "not leak" },
     ...overrides,
@@ -71,6 +72,49 @@ assert.deepEqual(
     priority: "high",
     labels: ["agent:ready"],
     repo: null,
+    ticket_name: "Build the pickup loop",
+  },
+);
+
+assert.deepEqual(
+  classifyPlaneAgentPickup(baseEvent({ agent_ready: { context: true, safety_notes: true } })),
+  {
+    source: "plane",
+    preview: "agent-pickup",
+    decision: "needs_input",
+    reason: "agent_ready_incomplete: acceptance_criteria",
+    correlation_id: "plane:delivery-1",
+    resource_id: "work-item-1",
+    project_id: "project-1",
+    sequence_id: 273,
+    state_name: "Ready for Agent",
+    priority: "high",
+    labels: ["agent:ready", "repo:docker"],
+    repo: "docker",
+    ticket_name: "Build the pickup loop",
+  },
+);
+
+assert.deepEqual(
+  classifyPlaneAgentPickup(
+    baseEvent({
+      agent_ready: null,
+      agent_ready_checks: ["context", "acceptance_criteria", "safety_notes"],
+    }),
+  ),
+  {
+    source: "plane",
+    preview: "agent-pickup",
+    decision: "ready",
+    reason: "ready_for_agent",
+    correlation_id: "plane:delivery-1",
+    resource_id: "work-item-1",
+    project_id: "project-1",
+    sequence_id: 273,
+    state_name: "Ready for Agent",
+    priority: "high",
+    labels: ["agent:ready", "repo:docker"],
+    repo: "docker",
     ticket_name: "Build the pickup loop",
   },
 );

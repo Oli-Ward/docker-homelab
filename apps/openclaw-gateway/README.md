@@ -68,7 +68,7 @@ PLANE_WORKSPACE_SLUG=<workspace slug>
 HOMELAB_CA_CERT_HOST_PATH=/home/oli/docker/ssl/home-lab-root.crt
 SSL_CERT_FILE=/usr/local/share/ca-certificates/home-lab-root.crt
 REQUESTS_CA_BUNDLE=/usr/local/share/ca-certificates/home-lab-root.crt
-PLANE_DEFAULT_PROJECT_ID=<optional project UUID>
+PLANE_DEFAULT_PROJECT_ID=<Openclaw project UUID>
 PLANE_WEBHOOK_SECRET=<stored outside Git, copied from Plane webhook setup>
 PLANE_WEBHOOK_QUEUE_BACKEND=redis
 PLANE_WEBHOOK_REDIS_URL=redis://openclaw-gateway-redis:6379/0
@@ -88,6 +88,10 @@ certificate read-only; do not mount Nginx Proxy Manager private keys or generate
 certificate directories into this container.
 
 The gateway authenticates to Plane with `X-API-Key` through the `openclaw-plane-sdk` package and returns normalized project, state, label, work-item, and comment responses. It does not return the Plane API key, raw upstream error bodies, or SDK `raw` payload fields. Write routes are intentionally narrow and currently support only the fields OpenClaw needs for initial ticket creation, state updates, labels, assignees, parent links, and progress comments.
+
+Set `PLANE_DEFAULT_PROJECT_ID` in Komodo and local smoke environments to the
+Openclaw Plane project UUID. This lets ChatGPT/Codex tooling and smoke scripts
+target the intended project without relying on fuzzy project-name matching.
 
 The retained Plane REST facade is split between read and write routes:
 
@@ -127,6 +131,15 @@ packages/openclaw-plane-sdk/
 `openclaw_plane_sdk` owns the Plane REST paths, `X-API-Key` header handling, typed request/response models, pagination-list extraction, and stable error classes for empty responses, invalid JSON, auth errors, not found, rate limits, and server failures. The gateway imports this SDK directly in `openclaw_gateway.routers.workflow`; `openclaw_gateway.clients.plane` and `openclaw_gateway.schemas.workflow` retain compatibility re-exports while consumers migrate.
 
 Future MCP, CLI, n8n helper, or OpenClaw-side Plane tooling should reuse this SDK contract instead of duplicating Plane API request construction or error handling. Keep real Plane API keys in Komodo or the consuming runtime, never in repo-managed SDK code or tests.
+
+## ChatGPT/Codex Plane Tools
+
+OPN-272 adds a gateway-backed tool adapter for ChatGPT and Codex. The local
+Codex path uses `openclaw-plane-tool`, and the ChatGPT path uses
+`chatgpt-actions/plane-openapi.yaml`. Both paths call only the existing
+authenticated `/v1/workflow/plane/...` gateway routes with the gateway bearer
+token. They must not receive the Plane API key, raw upstream Plane payloads,
+Docker access, or broad delete/archive/bulk-update capabilities.
 
 Local verification for the facade is non-deploying: run the gateway workflow route tests, the SDK tests, and a repository search proving `openclaw_gateway.routers.workflow` does not construct direct Plane HTTP requests. After a Komodo redeploy, record the gateway image/build revision, confirm the image has `openclaw-plane-sdk` installed, run read smoke before write smoke, confirm controlled error responses include the expected correlation ID, and document rollback by reverting the gateway image or disabling write callers while leaving Plane data intact.
 
@@ -236,6 +249,12 @@ The n8n sender forwards only the normalized dispatch record to OpenClaw:
   "state_name": "Ready for Agent",
   "priority": "high",
   "label_names": ["agent:ready", "repo:docker"],
+  "agent_ready": {
+    "context": true,
+    "acceptance_criteria": true,
+    "safety_notes": true
+  },
+  "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
   "received_at": "2026-07-11T08:45:00.000Z"
 }
 ```
@@ -255,9 +274,10 @@ dead-letter/replay, and write-back loop-prevention smoke evidence is recorded.
 For local dry-run checks, `apps/utilities/n8n/scripts/plane-agent-pickup-preview.js`
 consumes the same normalized event from stdin or a JSON file and returns only a
 decision record. It reports `ignored` for unsupported or not-ready events,
-`needs_input` when `Ready for Agent` is missing a `repo:<name>` label, and
-`ready` when the ticket has enough routing metadata. The helper is read-only:
-it does not call Plane, OpenClaw, GitHub, SSH, Docker, or live n8n APIs.
+`needs_input` when `Ready for Agent` is missing a `repo:<name>` label or
+complete agent-ready checklist, and `ready` when the ticket has enough routing
+and checklist metadata. The helper is read-only: it does not call Plane,
+OpenClaw, GitHub, SSH, Docker, or live n8n APIs.
 
 The repo-managed n8n dispatch sender uses that preview as its local gate before
 SSH. `ignored` and `needs_input` events return the decision JSON without

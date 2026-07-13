@@ -144,11 +144,40 @@ async def test_plane_create_work_item_posts_narrow_payload():
     assert request.headers["X-API-Key"] == "plane-secret"
     assert request.read() == (
         b'{"name":"Created from OpenClaw","description_html":"<p>Created by gateway test</p>",'
-        b'"state_id":"state-todo","priority":null,"label_ids":["label-openclaw"],'
-        b'"assignee_ids":[],"parent_id":null}'
+        b'"state_id":"state-todo","label_ids":["label-openclaw"]}'
     )
     assert result.id == "work-item-2"
     assert result.name == "Created from OpenClaw"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_plane_create_work_item_omits_unset_optional_fields():
+    route = respx.post(
+        "http://plane:8085/api/v1/workspaces/openclaw/projects/project-1/work-items/"
+    ).mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "id": "work-item-3",
+                "name": "Created with defaults",
+                "sequence_id": 12,
+                "project_id": "project-1",
+                "state_id": "state-todo",
+            },
+        )
+    )
+
+    result = await make_client().create_work_item(
+        project_id="project-1",
+        work_item=PlaneWorkItemCreate(
+            name="Created with defaults",
+            state_id="state-todo",
+        ),
+    )
+
+    assert route.calls.last.request.read() == b'{"name":"Created with defaults","state_id":"state-todo"}'
+    assert result.id == "work-item-3"
 
 
 @pytest.mark.asyncio
@@ -171,6 +200,28 @@ async def test_plane_update_work_item_patches_only_set_fields():
 
     assert route.calls.last.request.read() == b'{"name":"Updated"}'
     assert result.name == "Updated"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_plane_update_work_item_serializes_state_id_as_plane_state_field():
+    route = respx.patch(
+        "http://plane:8085/api/v1/workspaces/openclaw/projects/project-1/work-items/work-item-2/"
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={"id": "work-item-2", "name": "Blocked", "project_id": "project-1", "state": "state-needs-input"},
+        )
+    )
+
+    result = await make_client().update_work_item(
+        project_id="project-1",
+        work_item_id="work-item-2",
+        update=PlaneWorkItemUpdate(state_id="state-needs-input"),
+    )
+
+    assert route.calls.last.request.read() == b'{"state":"state-needs-input"}'
+    assert result.state_id == "state-needs-input"
 
 
 @pytest.mark.asyncio

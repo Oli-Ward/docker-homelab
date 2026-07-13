@@ -88,6 +88,8 @@ class N8nClient:
             "state_name",
             "priority",
             "label_names",
+            "agent_ready",
+            "agent_ready_checks",
         ):
             if field_name in event:
                 payload[field_name] = event.get(field_name)

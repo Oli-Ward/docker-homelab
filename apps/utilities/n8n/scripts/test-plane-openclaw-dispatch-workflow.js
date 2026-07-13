@@ -37,6 +37,12 @@ assert.ok(payloadBuilder, "workflow must include a payload builder node");
 const assignmentNames = payloadBuilder.parameters.assignments.assignments.map(
   (assignment) => assignment.name,
 );
+const assignmentByName = Object.fromEntries(
+  payloadBuilder.parameters.assignments.assignments.map((assignment) => [
+    assignment.name,
+    assignment,
+  ]),
+);
 assert.deepEqual(
   [
     "schema_version",
@@ -57,9 +63,17 @@ assert.deepEqual(
     "state_name",
     "priority",
     "label_names",
+    "agent_ready",
+    "agent_ready_checks",
   ].filter((name) => !assignmentNames.includes(name)),
   [],
 );
+assert.match(assignmentByName.team.value, /openclaw/);
+assert.match(assignmentByName.source_identifier.value, /identifier/);
+assert.match(assignmentByName.source_identifier.value, /OPENC-/);
+assert.match(assignmentByName.agent_ready_checks.value, /context/);
+assert.match(assignmentByName.agent_ready_checks.value, /acceptance_criteria/);
+assert.match(assignmentByName.agent_ready_checks.value, /safety_notes/);
 
 const response = workflow.nodes.find((node) => node.type === "n8n-nodes-base.respondToWebhook");
 assert.ok(response, "workflow must return a webhook response");

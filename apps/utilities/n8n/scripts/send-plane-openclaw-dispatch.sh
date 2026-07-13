@@ -19,11 +19,75 @@ cleanup() {
 trap cleanup EXIT
 
 cat > "$input_file"
-"$NODE_BIN" - "$input_file" "$payload_file" <<NODE
+"$NODE_BIN" - "$input_file" "$payload_file" <<'NODE'
 const fs = require("fs");
 const inputPath = process.argv[2];
 const outputPath = process.argv[3];
 const event = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+function normalizeAgentReady(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const checks = {};
+  for (const [key, enabled] of Object.entries(value)) {
+    const name = String(key).trim();
+    if (name) {
+      checks[name] = Boolean(enabled);
+    }
+  }
+  return Object.keys(checks).length > 0 ? checks : undefined;
+}
+function normalizeStringList(value) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const values = value.map((item) => String(item).trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+const REQUIRED_AGENT_READY_CHECKS = ["context", "acceptance_criteria", "safety_notes"];
+function normalizeInteger(value) {
+  if (Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  return null;
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+function canonicalIdentifier(event, sequenceId) {
+  return firstString(
+    event.source_identifier,
+    event.sourceIdentifier,
+    event.identifier,
+    event.work_item_identifier,
+    event.workItemIdentifier,
+  ) || (sequenceId !== null ? `OPENC-${sequenceId}` : "");
+}
+function normalizeLabels(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((label) => String(label).trim()).filter(Boolean);
+}
+function isReadyForAgent(event) {
+  return firstString(event.state_name, event.stateName).toLowerCase() === "ready for agent";
+}
+function normalizeAgentReadyChecks(event) {
+  const checks = normalizeStringList(event.agent_ready_checks || event.agentReadyChecks);
+  if (checks) {
+    return checks;
+  }
+  return isReadyForAgent(event) ? REQUIRED_AGENT_READY_CHECKS : undefined;
+}
+const sequenceId = normalizeInteger(event.sequence_id || event.sequenceId);
 const normalized = {
   schema_version: event.schema_version || "plane.webhook.v1",
   event_id: event.event_id || event.delivery_id || "",
@@ -39,17 +103,19 @@ const normalized = {
   action: event.action || "",
   delivery_id: event.delivery_id || "",
   resource_id: event.resource_id || "",
-  source_identifier: event.source_identifier || event.sourceIdentifier || "",
+  source_identifier: canonicalIdentifier(event, sequenceId),
   webhook_id: event.webhook_id || "",
   actor_id: event.actor_id || "",
-  team: event.team || event.team_name || event.teamName || "",
+  team: firstString(event.team, event.team_name, event.teamName) || "openclaw",
   project_id: event.project_id || "",
-  sequence_id: Number.isInteger(event.sequence_id) ? event.sequence_id : null,
+  sequence_id: sequenceId,
   name: event.name || "",
   state_id: event.state_id || "",
-  state_name: event.state_name || "",
+  state_name: firstString(event.state_name, event.stateName),
   priority: event.priority || "",
-  label_names: Array.isArray(event.label_names) ? event.label_names.filter((label) => typeof label === "string" && label) : [],
+  label_names: normalizeLabels(event.label_names || event.labelNames),
+  agent_ready: normalizeAgentReady(event.agent_ready || event.agentReady),
+  agent_ready_checks: normalizeAgentReadyChecks(event),
   received_at: event.received_at || new Date().toISOString(),
 };
 fs.writeFileSync(outputPath, JSON.stringify(normalized));

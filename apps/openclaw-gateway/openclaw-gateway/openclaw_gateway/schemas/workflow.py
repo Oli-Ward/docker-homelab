@@ -40,6 +40,8 @@ class PlaneWebhookAck(BaseModel):
     state_name: str | None = None
     priority: str | int | None = None
     label_names: list[str] | None = None
+    agent_ready: dict[str, bool] | None = None
+    agent_ready_checks: list[str] | None = None
     queued: bool
     duplicate: bool
     ignored: bool = False

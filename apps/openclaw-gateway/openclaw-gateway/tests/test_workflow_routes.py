@@ -171,9 +171,18 @@ async def test_plane_metadata_routes_return_states_and_labels(monkeypatch):
 async def test_plane_create_update_and_comment_routes(monkeypatch):
     observed: dict[str, object] = {}
 
+    async def list_states(self, project_id):
+        observed["list_states"] = project_id
+        return PlaneStatesResponse(items=[PlaneState(id="state-todo", name="Todo")])
+
     async def create_work_item(self, project_id, work_item):
-        observed["create"] = (project_id, work_item.name)
-        return PlaneWorkItem(id="work-item-1", name=work_item.name, project_id=project_id)
+        observed["create"] = (project_id, work_item.name, work_item.state_id)
+        return PlaneWorkItem(
+            id="work-item-1",
+            name=work_item.name,
+            project_id=project_id,
+            state_id=work_item.state_id,
+        )
 
     async def update_work_item(self, project_id, work_item_id, update):
         observed["update"] = (project_id, work_item_id, update.state_id)
@@ -183,6 +192,7 @@ async def test_plane_create_update_and_comment_routes(monkeypatch):
         observed["comment"] = (project_id, work_item_id, comment.comment_html)
         return PlaneComment(id="comment-1", comment_html=comment.comment_html)
 
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_states", list_states)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.create_work_item", create_work_item)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.update_work_item", update_work_item)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
@@ -209,7 +219,8 @@ async def test_plane_create_update_and_comment_routes(monkeypatch):
     assert updated.status_code == 200
     assert commented.status_code == 200
     assert observed == {
-        "create": ("project-1", "Created from route"),
+        "list_states": "project-1",
+        "create": ("project-1", "Created from route", "state-todo"),
         "update": ("project-1", "work-item-1", "state-started"),
         "comment": ("project-1", "work-item-1", "<p>Progress</p>"),
     }
@@ -219,8 +230,16 @@ async def test_plane_create_update_and_comment_routes(monkeypatch):
 async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplog):
     caplog.set_level(logging.INFO, logger="openclaw_gateway.routers.workflow")
 
+    async def list_states(self, project_id):
+        return PlaneStatesResponse(items=[PlaneState(id="state-todo", name="Todo")])
+
     async def create_work_item(self, project_id, work_item):
-        return PlaneWorkItem(id="created-work-item", name=work_item.name, project_id=project_id)
+        return PlaneWorkItem(
+            id="created-work-item",
+            name=work_item.name,
+            project_id=project_id,
+            state_id=work_item.state_id,
+        )
 
     async def update_work_item(self, project_id, work_item_id, update):
         return PlaneWorkItem(id=work_item_id, name="Updated", project_id=project_id, state_id=update.state_id)
@@ -228,6 +247,7 @@ async def test_plane_write_routes_emit_secret_free_audit_logs(monkeypatch, caplo
     async def add_comment(self, project_id, work_item_id, comment):
         return PlaneComment(id="comment-1", comment_html=comment.comment_html)
 
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_states", list_states)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.create_work_item", create_work_item)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.update_work_item", update_work_item)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
@@ -338,11 +358,15 @@ async def test_plane_routes_exclude_raw_upstream_payloads(monkeypatch):
             raw={"upstream_secret": "raw-single-item-sentinel"},
         )
 
+    async def list_states(self, project_id):
+        return PlaneStatesResponse(items=[PlaneState(id="state-todo", name="Todo")])
+
     async def create_work_item(self, project_id, work_item):
         return PlaneWorkItem(
             id="created-work-item",
             name=work_item.name,
             project_id=project_id,
+            state_id=work_item.state_id,
             raw={"upstream_secret": "raw-created-item-sentinel"},
         )
 
@@ -356,6 +380,7 @@ async def test_plane_routes_exclude_raw_upstream_payloads(monkeypatch):
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_projects", list_projects)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.search_work_items", search_work_items)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.get_work_item", get_work_item)
+    monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.list_states", list_states)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.create_work_item", create_work_item)
     monkeypatch.setattr("openclaw_gateway.routers.workflow.PlaneClient.add_comment", add_comment)
 
@@ -548,6 +573,8 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
                 {"id": "label-agent", "name": "agent:ready"},
                 {"id": "label-repo", "name": "repo:docker"},
             ],
+            "agent_ready": {"context": True, "acceptance_criteria": True, "safety_notes": True},
+            "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
             "description_html": "<p>raw description must not be forwarded</p>",
         },
     }
@@ -584,6 +611,8 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "state_name": "Ready for Agent",
         "priority": "high",
         "label_names": ["agent:ready", "repo:docker"],
+        "agent_ready": {"context": True, "acceptance_criteria": True, "safety_notes": True},
+        "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
         "correlation_id": "plane:delivery-1",
         "queued": True,
         "duplicate": False,
@@ -618,12 +647,16 @@ async def test_plane_webhook_accepts_signed_issue_event_without_gateway_bearer_t
         "state_name": "Ready for Agent",
         "priority": "high",
         "label_names": ["agent:ready", "repo:docker"],
+        "agent_ready": {"context": True, "acceptance_criteria": True, "safety_notes": True},
+        "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
         "correlation_id": "plane:delivery-1",
         "causation_id": None,
         "raw_payload_hash": hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode("utf-8")).hexdigest(),
         "retry_attempt": 0,
         "actor": {"id": None, "display_name": None},
         "payload": {
+            "agent_ready": {"context": True, "acceptance_criteria": True, "safety_notes": True},
+            "agent_ready_checks": ["context", "acceptance_criteria", "safety_notes"],
             "label_names": ["agent:ready", "repo:docker"],
             "name": "Ready for agent",
             "priority": "high",
