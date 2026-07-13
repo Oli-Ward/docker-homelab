@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -142,10 +144,12 @@ async def test_plane_create_work_item_posts_narrow_payload():
 
     request = route.calls.last.request
     assert request.headers["X-API-Key"] == "plane-secret"
-    assert request.read() == (
-        b'{"name":"Created from OpenClaw","description_html":"<p>Created by gateway test</p>",'
-        b'"state_id":"state-todo","label_ids":["label-openclaw"]}'
-    )
+    assert json.loads(request.read()) == {
+        "name": "Created from OpenClaw",
+        "description_html": "<p>Created by gateway test</p>",
+        "state": "state-todo",
+        "label_ids": ["label-openclaw"],
+    }
     assert result.id == "work-item-2"
     assert result.name == "Created from OpenClaw"
 
@@ -176,7 +180,10 @@ async def test_plane_create_work_item_omits_unset_optional_fields():
         ),
     )
 
-    assert route.calls.last.request.read() == b'{"name":"Created with defaults","state_id":"state-todo"}'
+    assert json.loads(route.calls.last.request.read()) == {
+        "name": "Created with defaults",
+        "state": "state-todo",
+    }
     assert result.id == "work-item-3"
 
 

@@ -99,9 +99,12 @@ class PlaneClient:
         project_id: str,
         work_item: PlaneWorkItemCreate,
     ) -> PlaneWorkItem:
+        payload = work_item.model_dump(exclude_none=True, exclude_defaults=True)
+        if "state_id" in payload:
+            payload["state"] = payload.pop("state_id")
         payload = await self._post(
             f"/api/v1/workspaces/{self._workspace_slug}/projects/{project_id}/work-items/",
-            json=work_item.model_dump(exclude_none=True, exclude_defaults=True),
+            json=payload,
         )
         return self._work_item(payload)
 
